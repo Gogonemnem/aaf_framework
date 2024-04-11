@@ -4,9 +4,9 @@ import torchvision
 import os
 import json
 
-from fcos_core.structures.bounding_box import BoxList
-from fcos_core.structures.segmentation_mask import SegmentationMask
-from fcos_core.structures.keypoint import PersonKeypoints
+from fcos.core.structures.bounding_box import BoxList
+from fcos.core.structures.segmentation_mask import SegmentationMask
+from fcos.core.structures.keypoint import PersonKeypoints
 
 from ...utils.visualization import plot_single_img_boxes
 from .cropping import CroppingModule

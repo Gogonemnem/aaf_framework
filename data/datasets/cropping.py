@@ -1,5 +1,5 @@
 import torch
-from fcos_core.structures.bounding_box import BoxList
+from fcos.core.structures.bounding_box import BoxList
 from ...utils.visualization import plot_single_img_boxes
 
 class CroppingModule():

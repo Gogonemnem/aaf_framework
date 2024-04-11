@@ -4,12 +4,12 @@ import torch.nn.functional as F
 from torch import nn
 
 from .. import registry
-from fcos_core.modeling.box_coder import BoxCoder
-from fcos_core.modeling.rpn.retinanet.retinanet import build_retinanet
+from fcos.core.modeling.box_coder import BoxCoder
+from fcos.core.modeling.rpn.retinanet.retinanet import build_retinanet
 from .fcos_builder import build_fcos
-from fcos_core.modeling.rpn.loss import make_rpn_loss_evaluator
-from fcos_core.modeling.rpn.anchor_generator import make_anchor_generator
-from fcos_core.modeling.rpn.inference import make_rpn_postprocessor
+from fcos.core.modeling.rpn.loss import make_rpn_loss_evaluator
+from fcos.core.modeling.rpn.anchor_generator import make_anchor_generator
+from fcos.core.modeling.rpn.inference import make_rpn_postprocessor
 
 
 class RPNHeadConvRegressor(nn.Module):

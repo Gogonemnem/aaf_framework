@@ -11,7 +11,7 @@ else:
     import xml.etree.ElementTree as ET
 
 
-from fcos_core.structures.bounding_box import BoxList
+from fcos.core.structures.bounding_box import BoxList
 
 
 class PascalVOCDataset(torch.utils.data.Dataset):

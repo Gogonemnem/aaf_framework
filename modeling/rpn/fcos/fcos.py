@@ -6,8 +6,8 @@ from torch import nn
 from .inference import make_fcos_postprocessor
 from .loss import make_fcos_loss_evaluator
 
-from fcos_core.layers import Scale
-from fcos_core.layers import DFConv2d
+from fcos.core.layers import Scale
+from fcos.core.layers import DFConv2d
 
 
 class FCOSHead(torch.nn.Module):

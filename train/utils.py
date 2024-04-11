@@ -1,10 +1,10 @@
 import torch
 import logging
-from fcos_core.solver.lr_scheduler import WarmupMultiStepLR
+from fcos.core.solver.lr_scheduler import WarmupMultiStepLR
 
 
 def make_optimizer(cfg, model, base_lr=None):
-    logger = logging.getLogger("fcos_core.trainer")
+    logger = logging.getLogger("fcos.core.trainer")
     if base_lr is None:
         base_lr = cfg.SOLVER.BASE_LR
     params = []

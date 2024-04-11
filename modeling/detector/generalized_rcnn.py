@@ -6,11 +6,11 @@ Implements the Generalized R-CNN framework
 import torch
 from torch import nn
 
-from fcos_core.structures.image_list import to_image_list
+from fcos.core.structures.image_list import to_image_list
 
-from fcos_core.modeling.backbone import build_backbone
+from fcos.core.modeling.backbone import build_backbone
 from ..rpn.rpn import build_rpn
-from fcos_core.modeling.roi_heads.roi_heads import build_roi_heads
+from fcos.core.modeling.roi_heads.roi_heads import build_roi_heads
 from ..support_extractor import ReweightingModule
 from ...utils.visualization import plot_img_only
 

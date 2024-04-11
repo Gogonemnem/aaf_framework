@@ -10,10 +10,10 @@ import time
 import sys
 
 import torch
-from fcos_core.config import cfg
-from fcos_core.utils.metric_logger import MetricLogger
-from fcos_core.engine.trainer import reduce_loss_dict
-from fcos_core.engine.trainer import do_train
+from fcos.core.config import cfg
+from fcos.core.utils.metric_logger import MetricLogger
+from fcos.core.engine.trainer import reduce_loss_dict
+from fcos.core.engine.trainer import do_train
 
 from ..modeling.detector import build_detection_model
 from .utils import make_lr_scheduler, make_optimizer
@@ -115,7 +115,7 @@ class Trainer():
         """
         Training loop for base training.
         """
-        self.logger = logging.getLogger("fcos_core.trainer")
+        self.logger = logging.getLogger("fcos.core.trainer")
         self.logger.info("Start training")
         self.meters = MetricLogger(delimiter="  ")
         self.max_iter = len(self.data_loader)
@@ -198,7 +198,7 @@ class Trainer():
         """
         Training loop for few-shot training. Used for base training and finetuning. 
         """
-        self.logger = logging.getLogger("fcos_core.trainer")
+        self.logger = logging.getLogger("fcos.core.trainer")
         self.logger.info("Start training")
         self.meters = MetricLogger(delimiter="  ")
         iter_epoch = len(self.query_loader)

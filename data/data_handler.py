@@ -2,7 +2,7 @@ import math
 import os
 
 import torch
-from fcos_core.utils.imports import import_file
+from fcos.core.utils.imports import import_file
 from torch.utils.data.sampler import BatchSampler
 
 
@@ -226,7 +226,7 @@ class DataHandler():
         """
 
         paths_catalog = import_file(
-            "fcos_core.config.paths_catalog", self.cfg.PATHS_CATALOG, True
+            "fcos.core.config.paths_catalog", self.cfg.PATHS_CATALOG, True
         )
         DatasetCatalog = paths_catalog.DatasetCatalog
         dataset_list = getattr(self.cfg.DATASETS, self.data_source.upper())

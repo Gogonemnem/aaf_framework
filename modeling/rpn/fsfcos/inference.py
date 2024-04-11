@@ -1,14 +1,14 @@
 import torch
 
-from fcos_core.modeling.rpn.inference import RPNPostProcessor
-from fcos_core.modeling.rpn.utils import permute_and_flatten
+from fcos.core.modeling.rpn.inference import RPNPostProcessor
+from fcos.core.modeling.rpn.utils import permute_and_flatten
 
-from fcos_core.modeling.box_coder import BoxCoder
-from fcos_core.modeling.utils import cat
-from fcos_core.structures.bounding_box import BoxList
-from fcos_core.structures.boxlist_ops import cat_boxlist
-from fcos_core.structures.boxlist_ops import boxlist_ml_nms
-from fcos_core.structures.boxlist_ops import remove_small_boxes
+from fcos.core.modeling.box_coder import BoxCoder
+from fcos.core.modeling.utils import cat
+from fcos.core.structures.bounding_box import BoxList
+from fcos.core.structures.boxlist_ops import cat_boxlist
+from fcos.core.structures.boxlist_ops import boxlist_ml_nms
+from fcos.core.structures.boxlist_ops import remove_small_boxes
 
 
 class FCOSPostProcessor(torch.nn.Module):

@@ -4,10 +4,10 @@ import os
 
 import torch
 
-from fcos_core.utils.model_serialization import load_state_dict
-from fcos_core.utils.c2_model_loading import load_c2_format
-from fcos_core.utils.imports import import_file
-from fcos_core.utils.model_zoo import cache_url
+from fcos.core.utils.model_serialization import load_state_dict
+from fcos.core.utils.c2_model_loading import load_c2_format
+from fcos.core.utils.imports import import_file
+from fcos.core.utils.model_zoo import cache_url
 
 from .utils import DisableLogger
 
@@ -148,7 +148,7 @@ class DetectronCheckpointer(Checkpointer):
     def _load_file(self, f):
         # catalog lookup
         if f.startswith("catalog://"):
-            paths_catalog = import_file("fcos_core.config.paths_catalog",
+            paths_catalog = import_file("fcos.core.config.paths_catalog",
                                         self.cfg.PATHS_CATALOG, True)
             catalog_f = paths_catalog.ModelCatalog.get(f[len("catalog://"):])
             self.logger.info("{} points to {}".format(f, catalog_f))

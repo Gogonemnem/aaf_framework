@@ -7,13 +7,13 @@ import torch
 from torch.nn import functional as F
 from torch import nn
 import os
-from fcos_core.modeling.rpn.utils import concat_box_prediction_layers
-from fcos_core.layers import IOULoss
-from fcos_core.layers import SigmoidFocalLoss
-from fcos_core.modeling.matcher import Matcher
-from fcos_core.modeling.utils import cat
-from fcos_core.structures.boxlist_ops import boxlist_iou
-from fcos_core.structures.boxlist_ops import cat_boxlist
+from fcos.core.modeling.rpn.utils import concat_box_prediction_layers
+from fcos.core.layers import IOULoss
+from fcos.core.layers import SigmoidFocalLoss
+from fcos.core.modeling.matcher import Matcher
+from fcos.core.modeling.utils import cat
+from fcos.core.structures.boxlist_ops import boxlist_iou
+from fcos.core.structures.boxlist_ops import cat_boxlist
 
 
 INF = 100000000

@@ -5,7 +5,7 @@ Simple dataset class that wraps a list of path names
 
 from PIL import Image
 
-from fcos_core.structures.bounding_box import BoxList
+from fcos.core.structures.bounding_box import BoxList
 
 
 class ListDataset(object):

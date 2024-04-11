@@ -4,8 +4,8 @@ import copy
 import logging
 
 import torch.utils.data
-from fcos_core.utils.comm import get_world_size
-from fcos_core.utils.imports import import_file
+from fcos.core.utils.comm import get_world_size
+from fcos.core.utils.imports import import_file
 
 from . import datasets as D
 from . import samplers

@@ -2,7 +2,7 @@ import os
 import math
 import torch
 
-from fcos_core.utils.imports import import_file
+from fcos.core.utils.imports import import_file
 class TaskSampler():
     """
     Class used for managing classes splits during training: 
@@ -40,7 +40,7 @@ class TaskSampler():
 
         elif split_method == 'deterministic':
             paths_catalog = import_file(
-                "fcos_core.config.paths_catalog", self.cfg.PATHS_CATALOG, True
+                "fcos.core.config.paths_catalog", self.cfg.PATHS_CATALOG, True
             )
             DatasetCatalog = paths_catalog.DatasetCatalog
             self.dataset_path = '/'.join(getattr(DatasetCatalog,
