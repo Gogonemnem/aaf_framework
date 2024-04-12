@@ -14,7 +14,7 @@ class DatasetCatalog(object):
     For VOC: check original repository for more documentation: 
     https://github.com/tianzhi0549/FCOS/tree/master.
     """
-    DATA_DIR = "~/FCT/datasets/data"
+    DATA_DIR = os.path.join(os.path.expanduser('~'), "FCT/datasets/data")
     DATASETS = {
         "dior_train": {
             "img_dir":
@@ -160,7 +160,7 @@ class DatasetCatalog(object):
 
     @staticmethod
     def get(name):
-        if 'coco' in name or 'dota' in name or 'pascalv' in name:
+        if 'coco' in name or 'dota' in name or 'pascalv' in name or 'dior' in name:
             data_dir = DatasetCatalog.DATA_DIR
             attrs = DatasetCatalog.DATASETS[name]
             args = dict(

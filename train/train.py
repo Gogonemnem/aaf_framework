@@ -77,7 +77,7 @@ class Trainer():
                                         start_iter=self.arguments['iteration'],
                                         is_finetune=self.is_finetuning)
 
-        self.tensorboard = CustomLogger(log_dir='/home/pierre/Documents/PHD/Experiments/logs',
+        self.tensorboard = CustomLogger(log_dir='aaf_framework/output/Experiments/logs',
                                         notify=False)
 
         self.evaluator_test = None
@@ -272,7 +272,7 @@ class Trainer():
                     )
                     if sys.gettrace() is None:
                         self.tensorboard.add_multi_scalars(
-                            self.meters.to_dict(), iteration)
+                            self.meters.meters, iteration)
 
                 # Evaluation on validation set
                 if iteration % self.logging_eval_int == 0:
@@ -388,7 +388,7 @@ class Trainer():
         self.evaluator_test = None
 
         self.tensorboard = CustomLogger(
-            log_dir='/home/pierre/Documents/PHD/Experiments/logs',
+            log_dir='aaf_framework/output/Experiments/logs',
             notify=False)
 
         # Freeze backbone layer

@@ -44,7 +44,7 @@ class CustomLogger():
 
     def add_multi_scalars(self, dict_scalars, iteration, main_tag='Losses'):
         for k, v in dict_scalars.items():
-            self.writer.add_scalar('{}/{}'.format(main_tag, k), v, iteration)
+            self.writer.add_scalar('{}/{}'.format(main_tag, k), v.avg, iteration)
 
 
 class BotLogger():
@@ -52,7 +52,7 @@ class BotLogger():
         self.notify = notify
         if self.notify:
             # create bot instance and log in conversation
-            with open('/home/pierre/Documents/bot_id') as f:
+            with open('aaf_framework/output/bot_id') as f:
                 bot_infos = f.readlines()
             self.token, self.chat_id = bot_infos[0][:-1], int(bot_infos[1])
             self.bot = telepot.Bot(self.token)
