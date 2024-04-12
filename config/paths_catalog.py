@@ -14,127 +14,145 @@ class DatasetCatalog(object):
     For VOC: check original repository for more documentation: 
     https://github.com/tianzhi0549/FCOS/tree/master.
     """
-    DATA_DIR = "/home/pierre/Documents/PHD/Datasets"
+    DATA_DIR = "~/FCT/datasets/data"
     DATASETS = {
+        "dior_train": {
+            "img_dir":
+            DATA_DIR + "/DIOR/coco/train2017",
+            "ann_file":
+            DATA_DIR + "/DIOR/coco/annotations/instances_train2017.json"
+        },
+        "dior_val": {
+            "img_dir":
+            DATA_DIR + "/DIOR/coco/val2017",
+            "ann_file":
+            DATA_DIR + "/DIOR/coco/annotations/instances_val2017.json"
+        },
+        "dior_test": {
+            "img_dir":
+            DATA_DIR + "/DIOR/coco/test2017",
+            "ann_file":
+            DATA_DIR + "/DIOR/coco/annotations/instances_test2017.json"
+        },
         "dota_train": {
             "img_dir":
-            "/home/pierre/Documents/PHD/Datasets/DOTA_v2/coco_format/train2017",
+            DATA_DIR + "/DOTA_v2/coco_format/train2017",
             "ann_file":
-            "/home/pierre/Documents/PHD/Datasets/DOTA_v2/coco_format/annotations/instances_train2017.json"
+            DATA_DIR + "/DOTA_v2/coco_format/annotations/instances_train2017.json"
         },
         "dota_val": {
             "img_dir":
-            "/home/pierre/Documents/PHD/Datasets/DOTA_v2/coco_format/val2017",
+            DATA_DIR + "/DOTA_v2/coco_format/val2017",
             "ann_file":
-            "/home/pierre/Documents/PHD/Datasets/DOTA_v2/coco_format/annotations/instances_val2017.json"
+            DATA_DIR + "/DOTA_v2/coco_format/annotations/instances_val2017.json"
         },
         "dota_test": {
             "img_dir":
-            "/home/pierre/Documents/PHD/Datasets/DOTA_v2/coco_format/test2017",
+            DATA_DIR + "/DOTA_v2/coco_format/test2017",
             "ann_file":
-            "/home/pierre/Documents/PHD/Datasets/DOTA_v2/coco_format/annotations/instances_test2017.json"
+            DATA_DIR + "/DOTA_v2/coco_format/annotations/instances_test2017.json"
         },
         "coco_2017_train": {
             "img_dir":
-            "/home/pierre/Documents/PHD/Datasets/MSCOCO/train2017",
+            DATA_DIR + "/MSCOCO/train2017",
             "ann_file":
-            "/home/pierre/Documents/PHD/Datasets/MSCOCO/annotations/instances_train2017.json"
+            DATA_DIR + "/MSCOCO/annotations/instances_train2017.json"
         },
         "coco_2017_val": {
             "img_dir":
-            "/home/pierre/Documents/PHD/Datasets/MSCOCO/val2017",
+            DATA_DIR + "/MSCOCO/val2017",
             "ann_file":
-            "/home/pierre/Documents/PHD/Datasets/MSCOCO/annotations/instances_val2017.json"
+            DATA_DIR + "/MSCOCO/annotations/instances_val2017.json"
         },
         "coco_2017_test_dev": {
             "img_dir":
-            "/home/pierre/Documents/PHD/Datasets/MSCOCO/test2017",
+            DATA_DIR + "/MSCOCO/test2017",
             "ann_file":
-            "/home/pierre/Documents/PHD/Datasets/MSCOCO/annotations/image_info_test-dev2017.json"
+            DATA_DIR + "/MSCOCO/annotations/image_info_test-dev2017.json"
         },
         "pascalv_2012_train": {
             "img_dir":
-            "/home/pierre/Documents/PHD/Datasets/VOC_COCO_FORMAT/2012/train",
+            DATA_DIR + "/VOC_COCO_FORMAT/2012/train",
             "ann_file":
-            "/home/pierre/Documents/PHD/Datasets/VOC_COCO_FORMAT/2012/annotations/instances_train.json"
+            DATA_DIR + "/VOC_COCO_FORMAT/2012/annotations/instances_train.json"
         },
         "pascalv_2012_test": {
             "img_dir":
-            "/home/pierre/Documents/PHD/Datasets/VOC_COCO_FORMAT/2012/test",
+            DATA_DIR + "/VOC_COCO_FORMAT/2012/test",
             "ann_file":
-            "/home/pierre/Documents/PHD/Datasets/VOC_COCO_FORMAT/2012/annotations/instances_test.json"
+            DATA_DIR + "/VOC_COCO_FORMAT/2012/annotations/instances_test.json"
         },
         "pascalv_2012_val": {
             "img_dir":
-            "/home/pierre/Documents/PHD/Datasets/VOC_COCO_FORMAT/2012/val",
+            DATA_DIR + "/VOC_COCO_FORMAT/2012/val",
             "ann_file":
-            "/home/pierre/Documents/PHD/Datasets/VOC_COCO_FORMAT/2012/annotations/instances_val.json"
+            DATA_DIR + "/VOC_COCO_FORMAT/2012/annotations/instances_val.json"
         },
         "pascalv_2007_train": {
             "img_dir":
-            "/home/pierre/Documents/PHD/Datasets/VOC_COCO_FORMAT/2007/train",
+            DATA_DIR + "/VOC_COCO_FORMAT/2007/train",
             "ann_file":
-            "/home/pierre/Documents/PHD/Datasets/VOC_COCO_FORMAT/2007/annotations/instances_train.json"
+            DATA_DIR + "/VOC_COCO_FORMAT/2007/annotations/instances_train.json"
         },
         "pascalv_2007_test": {
             "img_dir":
-            "/home/pierre/Documents/PHD/Datasets/VOC_COCO_FORMAT/2007/test",
+            DATA_DIR + "/VOC_COCO_FORMAT/2007/test",
             "ann_file":
-            "/home/pierre/Documents/PHD/Datasets/VOC_COCO_FORMAT/2007/annotations/instances_test.json"
+            DATA_DIR + "/VOC_COCO_FORMAT/2007/annotations/instances_test.json"
         },
         "pascalv_2007_val": {
             "img_dir":
-            "/home/pierre/Documents/PHD/Datasets/VOC_COCO_FORMAT/2007/val",
+            DATA_DIR + "/VOC_COCO_FORMAT/2007/val",
             "ann_file":
-            "/home/pierre/Documents/PHD/Datasets/VOC_COCO_FORMAT/2007/annotations/instances_val.json"
+            DATA_DIR + "/VOC_COCO_FORMAT/2007/annotations/instances_val.json"
         },
         "pascalv_merged_train": {
             "img_dir":
-            "/home/pierre/Documents/PHD/Datasets/VOC_COCO_FORMAT/Merged/train",
+            DATA_DIR + "/VOC_COCO_FORMAT/Merged/train",
             "ann_file":
-            "/home/pierre/Documents/PHD/Datasets/VOC_COCO_FORMAT/Merged/annotations/instances_train.json"
+            DATA_DIR + "/VOC_COCO_FORMAT/Merged/annotations/instances_train.json"
         },
         "pascalv_merged_test": {
             "img_dir":
-            "/home/pierre/Documents/PHD/Datasets/VOC_COCO_FORMAT/Merged/test",
+            DATA_DIR + "/VOC_COCO_FORMAT/Merged/test",
             "ann_file":
-            "/home/pierre/Documents/PHD/Datasets/VOC_COCO_FORMAT/Merged/annotations/instances_test.json"
+            DATA_DIR + "/VOC_COCO_FORMAT/Merged/annotations/instances_test.json"
         },
         "pascalv_merged_val": {
             "img_dir":
-            "/home/pierre/Documents/PHD/Datasets/VOC_COCO_FORMAT/Merged/val",
+            DATA_DIR + "/VOC_COCO_FORMAT/Merged/val",
             "ann_file":
-            "/home/pierre/Documents/PHD/Datasets/VOC_COCO_FORMAT/Merged/annotations/instances_val.json"
+            DATA_DIR + "/VOC_COCO_FORMAT/Merged/annotations/instances_val.json"
         },
         "voc_2012_train": {
             "data_dir":
-            "/home/pierre/Documents/PHD/Datasets/VOC_2012/VOCdevkit/VOC2012",
+            DATA_DIR + "/VOC_2012/VOCdevkit/VOC2012",
             "split": "train"
         },
         "voc_2012_val": {
             "data_dir":
-            "/home/pierre/Documents/PHD/Datasets/VOC_2012/VOCdevkit/VOC2012",
+            DATA_DIR + "/VOC_2012/VOCdevkit/VOC2012",
             "split": "val"
         },
         "voc_2012_test": {
             "data_dir":
-            "/home/pierre/Documents/PHD/Datasets/VOC_2012/VOCdevkit/VOC2012",
+            DATA_DIR + "/VOC_2012/VOCdevkit/VOC2012",
             "split": "test"
             # PASCAL VOC2012 doesn't made the test annotations available, so there's no json annotation
         },
         "voc_2007_train": {
             "data_dir":
-            "/home/pierre/Documents/PHD/Datasets/VOC_2007/VOCdevkit/VOC2007",
+            DATA_DIR + "/VOC_2007/VOCdevkit/VOC2007",
             "split": "train"
         },
         "voc_2007_val": {
             "data_dir":
-            "/home/pierre/Documents/PHD/Datasets/VOC_2007/VOCdevkit/VOC2007",
+            DATA_DIR + "/VOC_2007/VOCdevkit/VOC2007",
             "split": "val"
         },
         "voc_2007_test": {
             "data_dir":
-            "/home/pierre/Documents/PHD/Datasets/VOC_2007/VOCdevkit/VOC2007",
+            DATA_DIR + "/VOC_2007/VOCdevkit/VOC2007",
             "split": "test"
             # PASCAL VOC2012 doesn't made the test annotations available, so there's no json annotation
         }
