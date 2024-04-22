@@ -246,8 +246,8 @@ class CrossScalesQuerySupportAlignment(BaseAlignment):
     align_first = True: Align support features to query features before the attention mechanism.
     """
     def __init__(self, cfg, align_first=True, *args, **kwargs):
-        super().__init__(cfg, align_first=True, *args, **kwargs)
-        self.align_first = True
+        super().__init__(cfg, align_first=align_first, *args, **kwargs)
+        self.align_first = align_first
         self.d = cfg.MODEL.RESNETS.BACKBONE_OUT_CHANNELS  # Dimensionality of feature vectors
         self.WQ = nn.Linear(self.d, self.d)  # Transformation for query
         self.WK = nn.Linear(self.d, self.d)  # Transformation for keys
