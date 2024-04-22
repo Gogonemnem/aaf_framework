@@ -44,7 +44,8 @@ class CustomLogger():
 
     def add_multi_scalars(self, dict_scalars, iteration, main_tag='Losses'):
         for k, v in dict_scalars.items():
-            self.writer.add_scalar('{}/{}'.format(main_tag, k), v.avg, iteration)
+            value = v.avg if hasattr(v, 'avg') else v
+            self.writer.add_scalar('{}/{}'.format(main_tag, k), value, iteration)
 
 
 class BotLogger():
