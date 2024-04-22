@@ -237,3 +237,88 @@ class CISA(BaseAlignment):
             'query' + self.output_name: query_aligned_,
             'support' + self.output_name: support_aligned_
         })
+
+
+@registry.ALIGNMENT_MODULE.register("XQSA")
+class CrossScalesQuerySupportAlignment(BaseAlignment):
+    """
+    Cross-Scales Query-Support Alignment (XQSA) for enhancing small object detection in FSOD.
+    align_first = True: Align support features to query features before the attention mechanism.
+    """
+    def __init__(self, cfg, align_first=True, *args, **kwargs):
+        super().__init__(cfg, align_first=True, *args, **kwargs)
+        self.align_first = True
+        self.d = cfg.MODEL.RESNETS.BACKBONE_OUT_CHANNELS  # Dimensionality of feature vectors
+        self.WQ = nn.Linear(self.d, self.d)  # Transformation for query
+        self.WK = nn.Linear(self.d, self.d)  # Transformation for keys
+        self.WV = nn.Linear(self.d, self.d)  # Transformation for values
+        self.mlp = nn.Sequential(
+            nn.LayerNorm(self.d),
+            nn.Linear(self.d, self.d),
+            nn.ReLU(),
+            nn.Linear(self.d, self.d)
+        )
+    
+    def forward(self, features):
+        B, C, _, _ = features['query' + self.input_name][0].shape  # Example shape from the first FPN level
+        N, _, _, _ = features['support' + self.input_name][0].shape  # Dimensions of support features
+
+        # Flatten features from all scales and concatenate
+        query_flat = torch.cat([f.view(B, C, -1) for f in features['query' + self.input_name]], dim=2)  # [B, C, H*W*levels]
+        support_flat = torch.cat([f.view(N, C, -1) for f in features['support' + self.input_name]], dim=2)  # [N, C, H'*W'*levels]
+
+        # Project to query, key, and value spaces
+        Q = self.WQ(query_flat.permute(0, 2, 1))  # [B, H*W*levels, C]
+        K = self.WK(support_flat.permute(0, 2, 1))  # [N, H'*W'*levels, C]
+        V = self.WV(support_flat.permute(0, 2, 1))  # [N, H'*W'*levels, C]
+
+        # Prepare Q, K, V for batch processing
+        Q = Q.unsqueeze(1).expand(-1, N, -1, -1)  # [B, N, H*W*levels, C]
+        K = K.unsqueeze(0).expand(B, -1, -1, -1)  # [B, N, H'*W'*levels, C]
+        V = V.unsqueeze(0).expand(B, -1, -1, -1)  # [B, N, H'*W'*levels, C]
+
+        # Compute affinity matrix for each query-support pair
+        affinity = torch.einsum('bnqc,bnkc->bnqk', Q, K)  # [B, N, H*W*levels, H'*W'*levels]
+        lambda_c = F.softmax(affinity / torch.sqrt(torch.tensor(self.d, dtype=torch.float32)), dim=-1)  # Softmax over keys
+
+        # Apply attention to values
+        A_c_q = torch.einsum('bnqk,bnkc->bnqc', lambda_c, V)  # [B, N, H*W*levels, C]
+        
+
+        # Apply MLP with skip connection (expand and reshape appropriately)
+        A_c_q_transformed = self.mlp(A_c_q)
+        A_c_q = A_c_q + A_c_q_transformed  # Element-wise addition for skip connection
+
+        # Reshape back to original spatial dimensions for each FPN level
+        query_aligned_support = []
+        start = 0
+        for level_features in features['query' + self.input_name]:
+            _, _, H, W = level_features.shape
+            num_elements = H * W
+            end = start + num_elements
+            reshaped = A_c_q[:, :, start:end].view(B, N, C, H, W)
+            query_aligned_support.append(reshaped)
+            start = end
+
+        features['query' + self.output_name] = query_aligned_support  # List([B, N, C, H, W]) ready for further processing
+        
+        support_features = features['support' + self.input_name]
+
+        if N % (B * self.cfg.FEWSHOT.K_SHOT) != 0 or N // (
+                B * self.cfg.FEWSHOT.K_SHOT) == 1:
+
+            support_aligned_query = [
+                level.unsqueeze(0).repeat(B, 1, 1, 1, 1).permute(1,0,2,3,4)
+                for level in support_features
+            ]
+        else:
+            support_aligned_query = [
+                level.view(-1, B, *level.shape[-3:])
+                for level in support_features
+            ]
+            N = support_aligned_query[0].shape[0]
+
+        features['support' + self.output_name] = support_aligned_query
+
+        return features
+    
