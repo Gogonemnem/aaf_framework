@@ -1,0 +1,88 @@
+MODEL:
+  META_ARCHITECTURE: "FSGeneralizedRCNN"
+  WEIGHT: ""
+  RPN_ONLY: True
+  FCOS_ON: True
+  BACKBONE:
+    CONV_BODY: "PVT-V2-B2-LI"
+    FREEZE_CONV_BODY_AT: 2
+  RESNETS:
+    BACKBONE_OUT_CHANNELS: 256
+  RETINANET:
+    USE_C5: False # FCOS uses P5 instead of C5
+  FCOS:
+    IOU_LOSS_TYPE: "giou"
+    LOSS_ALPHA: 0.25
+    INFERENCE_TH: 0.1
+    NUM_CLASSES: 17
+DATASETS:
+  TRAIN: ("dior_train",)
+  TEST: ("dior_test",)
+  VAL: ("dior_val",)
+INPUT:
+  MIN_SIZE_TRAIN: (512,)
+  MAX_SIZE_TRAIN: 512
+  MIN_SIZE_TEST: 512
+  MAX_SIZE_TEST: 512
+  PIXEL_MEAN: [103.530, 116.280, 123.675]
+  PIXEL_STD: [57.375, 57.120, 58.395]
+  TO_BGR255: True
+DATALOADER:
+  SIZE_DIVISIBILITY: 32
+  NUM_WORKERS: 0
+SOLVER:
+  BASE_LR: 0.001
+  WEIGHT_DECAY: 0.0001
+  STEPS: (150000, 2000000)
+  MAX_ITER: 90000
+  IMS_PER_BATCH: 4
+  WARMUP_METHOD: "constant"
+  CHECKPOINT_PERIOD: 5000
+  CONTINUE_TRAINING: True # False
+TEST:
+  IMS_PER_BATCH: 8
+  BBOX_AUG:
+    ENABLED: False
+    H_FLIP: True
+    SCALES: (400, 500, 600, 700, 900, 1000, 1100, 1200)
+    MAX_SIZE: 2000
+    SCALE_H_FLIP: True
+FEWSHOT:
+  ENABLED: True
+  N_WAYS_TRAIN: 5
+  N_WAYS_TEST: 5
+  N_CLASSES_TEST: 5
+  N_QUERY_TRAIN: 100
+  N_QUERY_TEST: 100
+  SPLIT_METHOD: 'deterministic'
+  K_SHOT: 1
+  EPISODES: 1000
+  SUPPORT_EXTRACTOR: 'same'
+  SUPPORT:
+    CROP_SIZE: (128,128)
+    CROP_MODE: 'KEEP_SIZE'
+    CROP_MARGIN: 0.5
+  SAME_SUPPORT_IN_BATCH: True # do not put to False while FineTuning
+  AAF:
+    # CFG: '/home/pierre/Documents/PHD/aaf_framework/config_files/aaf_module/feature_reweighting.yaml'
+    CFG: 'aaf_framework/config_files/aaf_module/xqsa.yaml'
+    # CFG: '/home/pierre/Documents/PHD/aaf_framework/config_files/aaf_module/meta_faster_rcnn.yaml'
+    # CFG: '/home/pierre/Documents/PHD/aaf_framework/config_files/aaf_module/dynamic.yaml'
+    # CFG: '/home/pierre/Documents/PHD/aaf_framework/config_files/aaf_module/self_adapt.yaml'
+OUTPUT_DIR: 'aaf_framework/output/Experiments_FSFCOS/DIOR/XQSA'
+RANDOM:
+  DISABLED: False
+LOGGING:
+  INTERVAL: 20
+  EVAL_INTERVAL: 1000
+FINETUNING: True
+FINETUNE:
+  EPISODES: 10000
+  FREEZE_AT: 5
+  LR: 0.0001
+  EXAMPLES: 'rng_same' # 'random' / 'rng_same' / 'deterministic'
+  SHOTS: [1,3,5,10]
+  MIXED: True
+  STEPS: (10000,)
+PRETRAINED_BACKBONE: True
+
