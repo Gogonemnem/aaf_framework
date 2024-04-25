@@ -42,5 +42,5 @@ NUM_GPUS=$(nvidia-smi -L | wc -l)
 CUDA_VISIBLE_DEVICES=$(seq -s, 0 $(($NUM_GPUS-1)))
 
 # Execute the command with the detected number of GPUs and configuration file
-.conda/envs/venv-nvidia/bin/python -m aaf_framework.main --num-gpus 1 --dist-url auto \
-        --config-file "$CONFIG_FILE" SOLVER.IMS_PER_BATCH 4 
+.conda/envs/venv-nvidia/bin/python -m aaf_framework.main --num-gpus $NUM_GPUS --dist-url auto \
+        --config-file "$CONFIG_FILE" SOLVER.IMS_PER_BATCH 8

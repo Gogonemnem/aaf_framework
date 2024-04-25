@@ -1,9 +1,5 @@
-import os
 from .train.train import Trainer
-from .config import cfg as config
-import sys
-import torch
-from torch import cuda
+from .config import get_cfg
 from detectron2.engine import (
     default_argument_parser,
     default_setup,
@@ -11,21 +7,16 @@ from detectron2.engine import (
     launch,
 )
 
-def set_cuda_visible_devices():
-    cuda_visible_devices = ','.join(str(i) for i in range(cuda.device_count()))
-    os.environ["CUDA_VISIBLE_DEVICES"] = cuda_visible_devices
-
 def setup(args):
     """
     Create configs and perform basic setups.
     """
-    cfg = config.clone()
+    cfg = get_cfg()
+    cfg.set_new_allowed(True)
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
     cfg.freeze()
-    # default_setup(
-    #     cfg, args
-    # )
+    default_setup(cfg, args)
     return cfg
     
 

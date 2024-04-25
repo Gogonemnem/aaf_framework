@@ -4,6 +4,7 @@ import os
 import torch
 from fcos.core.utils.imports import import_file
 from torch.utils.data.sampler import BatchSampler
+from detectron2.utils import comm
 
 
 from . import datasets as D
@@ -153,8 +154,26 @@ class DataHandler():
             
             Returns:
         """
+        num_gpus = comm.get_world_size()
+        if self.is_train:
+            images_per_batch = self.cfg.SOLVER.IMS_PER_BATCH
+            images_per_gpu = images_per_batch // num_gpus
+            shuffle = True
 
-        shuffle, num_iters, start_iter, aspect_grouping, images_per_gpu = self.get_parameters(is_fewshot)
+            if is_fewshot:
+                num_iters = None
+            else:
+                num_iters = self.cfg.SOLVER.MAX_ITER # Important for not repeating same examples over and over
+
+            start_iter = self.start_iter
+        else:
+            images_per_batch = self.cfg.TEST.IMS_PER_BATCH
+            images_per_gpu = images_per_batch // num_gpus
+            shuffle = True
+            num_iters = None
+            start_iter = 0
+
+        aspect_grouping = [1] if self.cfg.DATALOADER.ASPECT_RATIO_GROUPING else []
 
         data_loaders = []
         for dataset in datasets:
@@ -252,29 +271,6 @@ class DataHandler():
                                                   is_train=self.is_train,
                                                   mode='support')
 
-    def get_parameters(self, is_fewshot):
-        num_gpus = 1
-        if self.is_train:
-            images_per_batch = self.cfg.SOLVER.IMS_PER_BATCH
-            images_per_gpu = images_per_batch // num_gpus
-            shuffle = True
-
-            if is_fewshot:
-                num_iters = None
-            else:
-                num_iters = self.cfg.SOLVER.MAX_ITER # Important for not repeating same examples over and over
-
-            start_iter = self.start_iter
-        else:
-            images_per_batch = self.cfg.TEST.IMS_PER_BATCH
-            images_per_gpu = images_per_batch // num_gpus
-            shuffle = True
-            num_iters = None
-            start_iter = 0
-
-        aspect_grouping = [1] if self.cfg.DATALOADER.ASPECT_RATIO_GROUPING else []
-
-        return shuffle, num_iters, start_iter, aspect_grouping, images_per_gpu
 
     def build_categories_map(self, coco_dataset):
         cats = coco_dataset.coco.cats

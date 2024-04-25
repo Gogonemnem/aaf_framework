@@ -1,7 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 import os
 
-from yacs.config import CfgNode as CN
+from detectron2.config import CfgNode as CN
 
 # -----------------------------------------------------------------------------
 # Convention about Training / Test specific parameters
@@ -18,6 +18,10 @@ from yacs.config import CfgNode as CN
 # -----------------------------------------------------------------------------
 
 _C = CN()
+
+# The version number, to upgrade from old configs to new ones if any
+# changes happen. It's recommended to keep a VERSION in your config file.
+_C.VERSION = 2
 
 _C.MODEL = CN()
 _C.MODEL.RPN_ONLY = False
@@ -356,7 +360,7 @@ _C.TEST.BBOX_AUG.SCALE_H_FLIP = False
 # ---------------------------------------------------------------------------- #
 # Misc options
 # ---------------------------------------------------------------------------- #
-_C.OUTPUT_DIR = "."
+_C.OUTPUT_DIR = "./output"
 
 _C.PATHS_CATALOG = os.path.join(os.path.dirname(__file__), "paths_catalog.py")
 
