@@ -111,7 +111,7 @@ class Trainer():
         data_handler = DataHandler(self.cfg, base_classes=True, is_train=True,
                                   start_iter=self.arguments['iteration'])
         data_handler.task_sampler.display_classes()
-        self.run_fs_training_loop(data_handler)
+        self.run_training_loop(data_handler, is_few_shot=True)
         
         if not self.cfg.FINETUNING:
             return
@@ -172,7 +172,7 @@ class Trainer():
         end = time.time()
 
         if is_few_shot:
-            query_loader, _, _ = data_handler.get_dataloader(is_few_shot=True)
+            query_loader, _, _ = data_handler.get_dataloader()
             iter_epoch = len(query_loader)
             self.max_iter = iter_epoch * self.episodes + start_iter
         else:
@@ -192,7 +192,7 @@ class Trainer():
                 train_classes = None
                 loader = data_loader
     
-            for images, targets, _ in loader:
+            for images, targets, _ in tqdm(loader):
                 current_iter += 1
                 if current_iter < start_iter:
                     continue
@@ -257,7 +257,7 @@ class Trainer():
         losses_reduced = sum(loss for loss in loss_dict_reduced.values())
         
         self.optimizer.zero_grad()
-        losses_reduced.backward()
+        losses.backward()
         
         # torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5.0) # use only for MFRCN to reduce unstability
 
@@ -285,7 +285,7 @@ class Trainer():
             )
         )
         if sys.gettrace() is None:
-            self.tensorboard.add_multi_scalars(self.meters.to_dict(), iteration)
+            self.tensorboard.add_multi_scalars(self.meters.meters, iteration)
     
     def eval(self, iteration, is_few_shot=False):
         """
