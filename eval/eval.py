@@ -4,6 +4,7 @@ import sys
 
 import numpy as np
 
+import detectron2.utils.comm as comm
 
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
@@ -199,8 +200,10 @@ class Evaluator():
             #                                      desc='Computing predictions')):
             for iteration, (images, targ,
                             img_id) in enumerate(query_loader):
-                support = self.model.compute_support_features(
-                    support_loader, self.device)
+                if comm.get_world_size() > 1:
+                    support = self.model.module.compute_support_features(support_loader, self.device)
+                else:
+                    support = self.model.compute_support_features(support_loader, self.device)
                 images = images.to(self.device)
                 pred_batch = self.model(images, classes=classes, support=support)
                 for idx, pred in enumerate(pred_batch):

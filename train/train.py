@@ -37,7 +37,6 @@ class Trainer():
         self.setup_environment()
         self.setup_logging()
 
-
         self.episodes = cfg.FEWSHOT.EPISODES
         self.logging_int = cfg.LOGGING.INTERVAL
         self.logging_eval_int = cfg.LOGGING.EVAL_INTERVAL
@@ -88,7 +87,8 @@ class Trainer():
         file_handler.setFormatter(log_format)
         self.logger.addHandler(file_handler)
 
-        self.tensorboard = CustomLogger(log_dir=os.path.join(self.cfg.OUTPUT_DIR, 'logs'), notify=False)
+        if comm.is_main_process():
+            self.tensorboard = CustomLogger(log_dir=os.path.join(self.cfg.OUTPUT_DIR, 'logs'), notify=False)
 
     def train(self):
         """
@@ -215,7 +215,8 @@ class Trainer():
                 self.meters.update(time=batch_time, data=data_time)
 
                 if current_iter % self.logging_int == 0 or current_iter == self.max_iter:
-                    self.log_metrics(losses, loss_dict, current_iter)
+                    if comm.is_main_process():
+                        self.log_metrics(losses, loss_dict, current_iter)
                     
                 if current_iter % self.logging_eval_int == 0:
                     self.eval(current_iter, is_few_shot=is_few_shot)
@@ -298,7 +299,7 @@ class Trainer():
             self.evaluator_train = self.create_evaluator(is_train_class=True, is_few_shot=is_few_shot)
 
         res_train, _ = self.evaluator_train.eval(verbose=False, all_classes=False, verbose_classes=False)
-        train_map = res_train.stats[0] if res_train != {} else 0
+        train_map = res_train.stats[1] if res_train != {} else 0
 
         if is_few_shot:
             # Initialize or use existing evaluator for test classes only if in few-shot mode
@@ -313,7 +314,8 @@ class Trainer():
         else:
             eval_res = {'Train mAP': train_map}
 
-        self.tensorboard.add_multi_scalars(eval_res, iteration, main_tag='Eval')
+        if comm.is_main_process():
+            self.tensorboard.add_multi_scalars(eval_res, iteration, main_tag='Eval')
         self.model.train()
     
     def create_evaluator(self, is_train_class, is_few_shot):
