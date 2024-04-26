@@ -35,7 +35,9 @@ class Trainer():
         self.device = torch.device(cfg.MODEL.DEVICE)
         self.setup_model()
         self.setup_environment()
-        self.setup_logging()
+        if comm.is_main_process():
+            self.setup_logging()
+            self.logger.info("Model:\n{}".format(self.model))
 
         self.episodes = cfg.FEWSHOT.EPISODES
         self.logging_int = cfg.LOGGING.INTERVAL
@@ -52,7 +54,6 @@ class Trainer():
     
     def setup_model(self):
         self.model = build_detection_model(self.cfg).to(self.device)
-        logging.getLogger(__name__).info("Model:\n{}".format(self.model))
 
         self.distributed = comm.get_world_size() > 1
         if self.distributed:
@@ -83,12 +84,12 @@ class Trainer():
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
         log_format = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+
         file_handler = logging.FileHandler(os.path.join(self.cfg.OUTPUT_DIR, 'training.log'))
         file_handler.setFormatter(log_format)
         self.logger.addHandler(file_handler)
 
-        if comm.is_main_process():
-            self.tensorboard = CustomLogger(log_dir=os.path.join(self.cfg.OUTPUT_DIR, 'logs'), notify=False)
+        self.tensorboard = CustomLogger(log_dir=os.path.join(self.cfg.OUTPUT_DIR, 'logs'), notify=False)
 
     def train(self):
         """
@@ -164,12 +165,14 @@ class Trainer():
         """
         Training loop for both base and few-shot training.
         """
-        self.logger.info("Start training")
-        self.meters = MetricLogger(delimiter="  ")
         start_iter = self.arguments["iteration"]
         self.model.train()
-        start_training_time = time.time()
-        end = time.time()
+
+        if comm.is_main_process():
+            self.logger.info("Start training")
+            self.meters = MetricLogger(delimiter="  ")
+            start_training_time = time.time()
+            end = time.time()
 
         if is_few_shot:
             query_loader, _, _ = data_handler.get_dataloader()
@@ -186,19 +189,26 @@ class Trainer():
                 query_loader, support_loader, train_classes = data_handler.get_dataloader(
                     seed=self.cfg.RANDOM.SEED if self.is_finetuning else None
                     )
-                print(f'Episode {epoch + 1}: classes = {train_classes}')
                 loader = query_loader
             else:
                 train_classes = None
                 loader = data_loader
+
+            if comm.is_main_process():
+                loader = tqdm(loader)
+
+                if is_few_shot:
+                    self.logger.info(f'Episode {epoch + 1}: classes = {train_classes}')
     
-            for images, targets, _ in tqdm(loader):
+            for images, targets, _ in loader:
                 current_iter += 1
                 if current_iter < start_iter:
                     continue
                 
-                data_time = time.time() - end
                 self.arguments["iteration"] = current_iter
+
+                if comm.is_main_process():
+                    data_time = time.time() - end
                 
                 support_features = None
                 if is_few_shot:
@@ -207,36 +217,35 @@ class Trainer():
                     else:
                         support_features = self.model.compute_support_features(support_loader, self.device)
 
-
                 losses, loss_dict = self.train_step(images, targets, classes=train_classes, support=support_features)
+
+                if not comm.is_main_process():
+                    continue
 
                 batch_time = time.time() - end
                 end = time.time()
-                self.meters.update(time=batch_time, data=data_time)
+                self.meters.update(time_batch=batch_time, time_data=data_time)
 
-                if current_iter % self.logging_int == 0 or current_iter == self.max_iter:
-                    if comm.is_main_process():
-                        self.log_metrics(losses, loss_dict, current_iter)
-                    
-                if current_iter % self.logging_eval_int == 0:
+                last_iteration_reached = current_iter == self.max_iter
+
+                log_interval_reached = current_iter % self.logging_int == 0
+                should_log = log_interval_reached or last_iteration_reached
+                if should_log:
+                    self.log_metrics(losses, loss_dict, current_iter)
+                
+                eval_interval_reached = current_iter % self.logging_eval_int == 0
+                should_eval = eval_interval_reached or last_iteration_reached
+                if should_eval:
                     self.eval(current_iter, is_few_shot=is_few_shot)
 
-                if current_iter % self.checkpoint_period == 0:
-                    if is_few_shot:
-                        if self.is_finetuning:
-                            model_name = f"intermediate_{current_iter:07d}_{self.cfg.FEWSHOT.K_SHOT}shot_finetuning"
-                        else:
-                            model_name = f"intermediate_{current_iter:07d}_{self.cfg.FEWSHOT.K_SHOT}shot"
-                    else:
-                        model_name = f"intermediate_{current_iter:07d}_base"
-                    self.checkpointer.save(model_name, **self.arguments)
-                    
-        if is_few_shot:
-            model_name = f"final_model_{self.cfg.FEWSHOT.K_SHOT}shot{'_finetuning' if self.is_finetuning else ''}"
-        else:
-            model_name = "final_model_base"
-        self.checkpointer.save(model_name, **self.arguments)
+                checkpoint_interval_reached = current_iter % self.checkpoint_period == 0
+                if checkpoint_interval_reached:                    
+                    self.save_checkpoint(f"intermediate_{current_iter:07d}", is_few_shot)
 
+        
+        if not comm.is_main_process():
+            return
+        
         total_training_time = time.time() - start_training_time
         total_time_str = str(datetime.timedelta(seconds=total_training_time))
         self.logger.info(
@@ -245,6 +254,7 @@ class Trainer():
                 total_time_str, total_training_time / (self.max_iter + 1)
             )
         )
+        self.save_checkpoint("final_model", is_few_shot)
 
     def train_step(self, images, targets, classes=None, support=None):
         """A single training step."""
@@ -269,10 +279,13 @@ class Trainer():
 
     def log_metrics(self, losses, loss_dict, iteration):
         """Log training metrics to console and tensorboard."""
-        eta_seconds = self.meters.time.global_avg * (self.max_iter - iteration)
+        eta_seconds = self.meters.time_batch.global_avg * (self.max_iter - iteration)
         eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
 
         self.meters.update(loss=losses, **loss_dict)
+
+        # Clear tqdm bar before logging
+        tqdm.write('')
 
         self.logger.info(
             self.meters.delimiter.join(
@@ -325,6 +338,15 @@ class Trainer():
         base_classes = is_train_class or not is_few_shot
         data_handler = DataHandler(self.cfg, base_classes=base_classes, data_source='val', is_train=False)
         return Evaluator(self.model, self.cfg, data_handler)
+    
+    def save_checkpoint(self, model_name, is_few_shot=False):
+        if is_few_shot:
+            model_name = f"{model_name}_{self.cfg.FEWSHOT.K_SHOT}shot"
+            if self.is_finetuning:
+                model_name = f"{model_name}_finetuning"
+        else:
+            model_name = f"{model_name}_base"
 
+        self.checkpointer.save(model_name, **self.arguments)
 
     
