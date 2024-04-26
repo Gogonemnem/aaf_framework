@@ -18,7 +18,7 @@ while getopts ":c:" opt; do
  esac
 done
 
-CONFIG_FILE="aaf_framework/config_files/fcos_PVT_V2_B2_LI_FPN_DIOR.yaml"
+CONFIG_FILE="aaf_framework/config_files/fcos_R_50_FPN_DIOR.yaml"
 shift $((OPTIND -1))
 
 # Check if the configuration file exists
@@ -43,4 +43,4 @@ CUDA_VISIBLE_DEVICES=$(seq -s, 0 $(($NUM_GPUS-1)))
 
 # Execute the command with the detected number of GPUs and configuration file
 .conda/envs/venv-nvidia/bin/python -m aaf_framework.main --num-gpus $NUM_GPUS --dist-url auto \
-        --config-file "$CONFIG_FILE" SOLVER.IMS_PER_BATCH 8
+  --config-file "$CONFIG_FILE" SOLVER.IMS_PER_BATCH $((NUM_GPUS*4))

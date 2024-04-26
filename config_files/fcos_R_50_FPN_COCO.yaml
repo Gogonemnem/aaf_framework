@@ -95,4 +95,4 @@ FINETUNE:
   SHOTS: [10, 30]
   MIXED: True
   STEPS: (10000,)
-
+VERSION: 2
