@@ -322,6 +322,7 @@ _C.SOLVER.CHECKPOINT_PERIOD = 2500
 _C.SOLVER.IMS_PER_BATCH = 16
 
 _C.SOLVER.CONTINUE_TRAINING = True
+_C.SOLVER.ACCUMULATION_STEPS = 1
 
 # ---------------------------------------------------------------------------- #
 # Specific test options
