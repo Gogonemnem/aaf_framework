@@ -85,6 +85,11 @@ class Trainer():
         self.logger.setLevel(logging.INFO)
         log_format = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 
+        # Console Handler for printing the logs to the console
+        # console_handler = logging.StreamHandler()
+        # console_handler.setFormatter(log_format)
+        # self.logger.addHandler(console_handler)
+
         file_handler = logging.FileHandler(os.path.join(self.cfg.OUTPUT_DIR, 'training.log'))
         file_handler.setFormatter(log_format)
         self.logger.addHandler(file_handler)
@@ -183,6 +188,9 @@ class Trainer():
             self.max_iter = len(data_loader)
         
         current_iter = start_iter
+        steps_per_update = self.cfg.SOLVER.ACCUMULATION_STEPS
+        accumulation_count = 0
+        
         for epoch in range(self.episodes if is_few_shot else 1):
             if is_few_shot:
                 # Reload dataloader for each few-shot episode
@@ -217,7 +225,13 @@ class Trainer():
                     else:
                         support_features = self.model.compute_support_features(support_loader, self.device)
 
-                losses, loss_dict = self.train_step(images, targets, classes=train_classes, support=support_features)
+                accumulate = (accumulation_count + 1) % steps_per_update != 0
+
+                losses, loss_dict = self.train_step(images, targets, classes=train_classes, support=support_features, accumulate=accumulate)
+
+                accumulation_count += 1
+                if accumulation_count % steps_per_update == 0:
+                    accumulation_count = 0  # Reset accumulation count after reaching the accumulation steps
 
                 if not comm.is_main_process():
                     continue
@@ -256,7 +270,7 @@ class Trainer():
         )
         self.save_checkpoint("final_model", is_few_shot)
 
-    def train_step(self, images, targets, classes=None, support=None):
+    def train_step(self, images, targets, classes=None, support=None, accumulate=False):
         """A single training step."""
         images = images.to(self.device)
         targets = [target.to(self.device) for target in targets]
@@ -266,15 +280,17 @@ class Trainer():
         # reduce losses over all GPUs for logging purposes
         loss_dict_reduced = reduce_loss_dict(loss_dict)
         losses_reduced = sum(loss for loss in loss_dict_reduced.values())
-        
-        self.optimizer.zero_grad()
-        losses.backward()
+
+        losses_reduced /= self.cfg.SOLVER.ACCUMULATION_STEPS
+        losses_reduced.backward()
         
         # torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5.0) # use only for MFRCN to reduce unstability
 
-        self.optimizer.step()
-        self.scheduler.step()
-
+        if not accumulate:
+            self.optimizer.step()
+            self.optimizer.zero_grad()
+            self.scheduler.step()
+        
         return losses_reduced, loss_dict_reduced
 
     def log_metrics(self, losses, loss_dict, iteration):
@@ -284,14 +300,11 @@ class Trainer():
 
         self.meters.update(loss=losses, **loss_dict)
 
-        # Clear tqdm bar before logging
-        tqdm.write('')
-
         self.logger.info(
             self.meters.delimiter.join(
                 [
                     f"eta: {eta_string}",
-                    f"iter: {iteration}",
+                    f"iter: {iteration}/{self.max_iter}",
                     f"{str(self.meters)}",
                     f"lr: {self.optimizer.param_groups[0]['lr']:.6f}",
                     f"max mem: {torch.cuda.max_memory_allocated() / 1024.0 / 1024.0:.0f}",
