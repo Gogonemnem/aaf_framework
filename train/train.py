@@ -324,7 +324,7 @@ class Trainer():
         if self.evaluator_train is None:
             self.evaluator_train = self.create_evaluator(is_train_class=True, is_few_shot=is_few_shot)
 
-        res_train, _ = self.evaluator_train.eval(verbose=False, all_classes=False, verbose_classes=False)
+        res_train = self.evaluator_train.eval(verbose=False, per_category=False)['overall']
         train_map = res_train.stats[1] if res_train != {} else 0
 
         if is_few_shot:
@@ -333,7 +333,7 @@ class Trainer():
                 self.evaluator_test = self.create_evaluator(is_train_class=False, is_few_shot=is_few_shot)
             
             # Perform evaluation and retrieve results for test classes
-            res_test, _ = self.evaluator_test.eval(verbose=False, all_classes=False, verbose_classes=False)
+            res_test = self.evaluator_test.eval(verbose=False, per_category=False)['overall']
             test_map = res_test.stats[1] if res_test != {} else 0
 
             eval_res = {'Train mAP': train_map, 'Test mAP': test_map}
