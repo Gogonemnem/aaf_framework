@@ -188,8 +188,10 @@ class Evaluator():
                 if comm.get_world_size() > 1:
                     model = model.module
 
-                if support_loader is None or classes is None:
+                if support_loader is not  None and classes is not None:
                     support = model.compute_support_features(support_loader, self.device)
+                else:
+                    support = None
 
                 images = images.to(self.device)
                 pred_batch = self.model(images, classes=classes, support=support)
