@@ -1,6 +1,5 @@
 import torch
 import os
-import sys
 
 import numpy as np
 
@@ -10,7 +9,6 @@ from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 
 from ..utils import tqdm, HiddenPrints
-
 
 
 class Evaluator():
@@ -28,10 +26,7 @@ class Evaluator():
         - cfg: cfg object of the model.
         - data_handler: DataHandler object of the dataset.
     """
-    def __init__(self,
-                 model,
-                 cfg,
-                 data_handler,
+    def __init__(self, model, cfg, data_handler,
                  output_folder='./Experiments_FSFCOS/Results'):
         self.model = model
         self.cfg = cfg
@@ -56,11 +51,9 @@ class Evaluator():
 
         if self.cfg.FEWSHOT.ENABLED:
             if loaders is None:
-                query_loader, support_loader, classes = self.data_handler.get_dataloader(
-                    seed=seed
-                )
-            else:
-                query_loader, support_loader, classes = loaders
+                loaders = self.data_handler.get_dataloader(seed=seed)
+
+            query_loader, support_loader, classes = loaders
 
             self.current_classes = classes
             if verbose_classes:
@@ -72,26 +65,22 @@ class Evaluator():
             }
 
             self.contiguous_label_map = query_loader.dataset.contiguous_category_id_to_json_id
-            predictions = self.compute_pred_fs(query_loader, support_loader,
-                                            classes)
+            predictions = self.compute_pred(query_loader, support_loader, classes)
         else:
             query_loader = self.data_handler.get_dataloader(seed=seed)
             classes = np.array(list(query_loader.dataset.coco.cats.keys())) + 1
-            predictions = self.compute_pred(query_loader)
-
+            predictions = self.computeones_pred(query_loader)
 
 
         if self.has_pred(predictions):
 
             for pred in predictions:
-                pred.add_field("objectness",
-                                torch.ones(len(pred), device=self.device))
+                pred.add_field("objectness", torch.ones(len(pred), device=self.device))
 
             # dirty hack to remove prints from pycocotools
             with HiddenPrints():
 
-                coco_results = self.prepare_for_coco_detection(predictions,
-                                                    query_loader.dataset)
+                coco_results = self.prepare_for_coco_detection(predictions, query_loader.dataset)
 
                 res = self.evaluate_predictions_on_coco(
                     query_loader.dataset.coco, coco_results,
@@ -101,15 +90,17 @@ class Evaluator():
 
                 res_per_class = {}
                 for c in classes:
-                    res_per_class[c] = self.evaluate_predictions_on_coco(query_loader.dataset.coco,
-                                                            coco_results,
-                                                            os.path.join(
-                                                                self.output_folder,
-                                                                'res.json'),
-                                                            'bbox',
-                                                            classes=[c])
+                    res_per_class[c] = self.evaluate_predictions_on_coco(
+                        query_loader.dataset.coco,
+                        coco_results,
+                        os.path.join(self.output_folder, 'res.json'),
+                        'bbox',
+                        classes=[c]
+                        )
+            
             if verbose:
                 self.eval_summary(res, res_per_class, all_classes=all_classes)
+            
             return res, res_per_class
 
         else:
@@ -177,41 +168,13 @@ class Evaluator():
         res.summarize()
         if all_classes:
             for c, res in res_per_class.items():
-                print('''\n{}\n\t\tClass {}\n{}'''.format(
-                    sep,
-                    '{}: '.format(c) + self.categories[c-1],
-                    sep))
+                print(f'''\n{sep}\n\t\tClass {c}: {self.categories[c-1]}\n{sep}''')
                 res.summarize()
 
     def get_cat_names(self, classes):
         return ", ".join([
             '\n\t\t{}: '.format(c) + self.categories[c-1] for c in classes
         ])
-
-
-    def compute_pred_fs(self, query_loader, support_loader=None, classes=None):
-        """
-        Model inference on a query_loader with fewshot. 
-        """
-        predictions = []
-        with torch.no_grad():
-            # for iteration, (images, targ,
-            #                 img_id) in enumerate(tqdm(query_loader,
-            #                                      desc='Computing predictions')):
-            for iteration, (images, targ,
-                            img_id) in enumerate(query_loader):
-                if comm.get_world_size() > 1:
-                    support = self.model.module.compute_support_features(support_loader, self.device)
-                else:
-                    support = self.model.compute_support_features(support_loader, self.device)
-                images = images.to(self.device)
-                pred_batch = self.model(images, classes=classes, support=support)
-                for idx, pred in enumerate(pred_batch):
-                    pred.add_field('image_id', torch.tensor(
-                        img_id[idx]))  # store img_id as tensor for convenience
-                    predictions.append(pred.to('cpu'))
-
-        return predictions
 
     def compute_pred(self, query_loader, support_loader=None, classes=None):
         """
@@ -220,18 +183,23 @@ class Evaluator():
         predictions = []
         with torch.no_grad():
             for iteration, (images, targ, img_id) in enumerate(query_loader):
+                model = self.model
+
+                if comm.get_world_size() > 1:
+                    model = model.module
+
+                if support_loader is None or classes is None:
+                    support = model.compute_support_features(support_loader, self.device)
+
                 images = images.to(self.device)
-                pred_batch = self.model(images)
+                pred_batch = self.model(images, classes=classes, support=support)
                 for idx, pred in enumerate(pred_batch):
-                    pred.add_field('image_id', torch.tensor(
-                        img_id[idx]))  # store img_id as tensor for convenience
+                    pred.add_field('image_id', torch.tensor(img_id[idx]))  # store img_id as tensor for convenience
                     predictions.append(pred.to('cpu'))
 
         return predictions
 
-    def evaluate_predictions_on_coco(self,
-        coco_gt, coco_results, json_result_file, iou_type="bbox",
-        classes=None):
+    def evaluate_predictions_on_coco(self, coco_gt, coco_results, json_result_file, iou_type="bbox", classes=None):
         """
         Run coco evaluation using pycocotools. 
         """
@@ -288,18 +256,13 @@ class Evaluator():
             scores = prediction.get_field("scores").tolist()
             labels = prediction.get_field("labels").tolist()
 
-            mapped_labels = [dataset.contiguous_category_id_to_json_id[i] for i in labels]
-            coco_results.extend(
-                [
-                    {
-                        "image_id": original_id,
-                        "category_id": mapped_labels[k],
-                        "bbox": box,
-                        "score": scores[k],
-                    }
-                    for k, box in enumerate(boxes)
-                ]
-            )
+            for box, score, label in zip(boxes, scores, labels):
+                coco_results.append({
+                    "image_id": original_id,
+                    "category_id": dataset.contiguous_category_id_to_json_id[label],
+                    "bbox": box,
+                    "score": score,
+                })
         return coco_results
 
     def has_pred(self, predictions):
