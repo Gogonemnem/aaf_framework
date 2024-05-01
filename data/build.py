@@ -4,14 +4,11 @@ import copy
 import logging
 
 import torch.utils.data
-from fcos.core.utils.comm import get_world_size
-from fcos.core.utils.imports import import_file
+from detectron2.utils.comm import get_world_size
+from detectron2.utils.env import _import_file as import_file
 
 from . import datasets as D
 from . import samplers
-
-from .collate_batch import BatchCollator, BBoxAugCollator
-from .transforms import build_transforms
 
 
 def build_dataset(dataset_list, transforms, dataset_catalog, cfg=None, is_train=True, mode='train', rng=None):

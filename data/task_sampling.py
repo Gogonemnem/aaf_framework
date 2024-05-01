@@ -2,7 +2,7 @@ import os
 import math
 import torch
 
-from fcos.core.utils.imports import import_file
+from detectron2.utils.env import _import_file as import_file
 class TaskSampler():
     """
     Class used for managing classes splits during training: 

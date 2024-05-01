@@ -17,7 +17,7 @@ from fcos.core.utils.metric_logger import MetricLogger
 from ..modeling.detector import build_detection_model
 from .utils import make_lr_scheduler, make_optimizer
 from ..data.data_handler import DataHandler
-from ..utils.checkpointer import DetectronCheckpointer
+from fcos.core.utils.checkpoint import DetectronCheckpointer
 from ..eval import Evaluator
 from ..utils.custom_logger import CustomLogger
 

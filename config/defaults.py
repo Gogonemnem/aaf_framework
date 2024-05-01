@@ -321,7 +321,7 @@ _C.SOLVER.CHECKPOINT_PERIOD = 2500
 # see 2 images per batch
 _C.SOLVER.IMS_PER_BATCH = 16
 
-_C.SOLVER.CONTINUE_TRAINING = True
+_C.SOLVER.CONTINUE_TRAINING = True ### RIGHT NOW, with its implementations, ITS ALWAYS TRUEE, 
 _C.SOLVER.ACCUMULATION_STEPS = 1
 
 # ---------------------------------------------------------------------------- #

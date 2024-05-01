@@ -1,6 +1,6 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
-from fcos.core.utils.registry import Registry
+from detectron2.utils.registry import Registry
 
 BACKBONES = Registry()
 RPN_HEADS = Registry()

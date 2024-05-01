@@ -2,7 +2,7 @@ import math
 import os
 
 import torch
-from fcos.core.utils.imports import import_file
+from detectron2.utils.env import _import_file as import_file
 from torch.utils.data.sampler import BatchSampler
 from detectron2.utils import comm
 
@@ -10,7 +10,7 @@ from detectron2.utils import comm
 from . import datasets as D
 from . import samplers
 from .build import build_dataset, make_batch_data_sampler
-from .collate_batch import BatchCollator, BBoxAugCollator
+from fcos.core.data import BatchCollator, BBoxAugCollator
 from .example_selector import ExampleSelector
 from .rng_handler import RNGHandler
 from .samplers.fs_sampler import FilteringSampler, SupportSampler
