@@ -25,9 +25,9 @@ class AAFModule(nn.Module):
         aaf_cfg.merge_from_file(cfg.FEWSHOT.AAF.CFG)
         self.aaf_cfg = aaf_cfg
 
-        self.alignment = registry.ALIGNMENT_MODULE[aaf_cfg.ALIGNMENT.MODE](cfg, aaf_cfg.ALIGN_FIRST)
-        self.attention = registry.ATTENTION_MODULE[aaf_cfg.ATTENTION.MODE](cfg, aaf_cfg.ALIGN_FIRST)
-        self.fusion = registry.FUSION_MODULE[aaf_cfg.FUSION.MODE](cfg)
+        self.alignment = registry.ALIGNMENT_MODULE.get(aaf_cfg.ALIGNMENT.MODE)(cfg, aaf_cfg.ALIGN_FIRST)
+        self.attention = registry.ATTENTION_MODULE.get(aaf_cfg.ATTENTION.MODE)(cfg, aaf_cfg.ALIGN_FIRST)
+        self.fusion = registry.FUSION_MODULE.get(aaf_cfg.FUSION.MODE)(cfg)
 
         assert self.check_modules_compatibility(), 'Wrong combination of AAF modules, please change cfg file.'
 

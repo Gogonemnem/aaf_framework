@@ -39,14 +39,14 @@ class BaseAlignment(nn.Module):
         pass
 
 
-@registry.ALIGNMENT_MODULE.register("IDENTITY")
-class AlignmentIdentity(BaseAlignment):
+@registry.ALIGNMENT_MODULE.register
+class IDENTITY(BaseAlignment):
     """
     Identity alignment with repeating the query and support
     to match the requested BNCHW and NBCHW.
     """
     def __init__(self, *args):
-        super(AlignmentIdentity, self).__init__(*args)
+        super(IDENTITY, self).__init__(*args)
         self.in_mode = AAFIOMode.ID
         self.out_mode = AAFIOMode.ID
 
@@ -83,14 +83,14 @@ class AlignmentIdentity(BaseAlignment):
         })
 
 
-@registry.ALIGNMENT_MODULE.register("IDENTITY_NO_REPEAT")
-class AlignmentNRIdentity(BaseAlignment):
+@registry.ALIGNMENT_MODULE.register
+class IDENTITY_NO_REPEAT(BaseAlignment):
     """
     Identity alignment without repeating the query and support
     to match the requested BNCHW and NBCHW
     """
     def __init__(self, *args):
-        super(AlignmentNRIdentity, self).__init__(*args)
+        super(IDENTITY_NO_REPEAT, self).__init__(*args)
         self.in_mode = AAFIOMode.ID
         self.out_mode = AAFIOMode.ID
 
@@ -106,15 +106,15 @@ class AlignmentNRIdentity(BaseAlignment):
         })
 
 
-@registry.ALIGNMENT_MODULE.register("SIMILARITY_ALIGN")
-class AlignmentSimilarity(BaseAlignment):
+@registry.ALIGNMENT_MODULE.register
+class SIMILARITY_ALIGN(BaseAlignment):
     """
     Similarity alignment module for Meta Faster R-CNN: Towards Accurate 
     Few-Shot Object Detection with Attentive Feature Alignment
     (https://arxiv.org/abs/2104.07719)
     """
     def __init__(self, *args):
-        super(AlignmentSimilarity, self).__init__(*args)
+        super(SIMILARITY_ALIGN, self).__init__(*args)
 
 
     def forward(self, features):
@@ -158,7 +158,7 @@ class AlignmentSimilarity(BaseAlignment):
         })
 
 
-@registry.ALIGNMENT_MODULE.register("CISA")
+@registry.ALIGNMENT_MODULE.register
 class CISA(BaseAlignment):
     """
     CISA block for Dual-Awareness Attention for
@@ -239,8 +239,8 @@ class CISA(BaseAlignment):
         })
 
 
-@registry.ALIGNMENT_MODULE.register("XQSA")
-class CrossScalesQuerySupportAlignment(BaseAlignment):
+@registry.ALIGNMENT_MODULE.register
+class XQSA(BaseAlignment):
     """
     Cross-Scales Query-Support Alignment (XQSA) for enhancing small object detection in FSOD.
     align_first = True: Align support features to query features before the attention mechanism.

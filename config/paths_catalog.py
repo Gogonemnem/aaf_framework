@@ -14,7 +14,7 @@ class DatasetCatalog(object):
     For VOC: check original repository for more documentation: 
     https://github.com/tianzhi0549/FCOS/tree/master.
     """
-    DATA_DIR = os.path.join(os.path.expanduser('~'), "FCT/datasets/data")
+    DATA_DIR = os.path.join(os.path.expanduser('~'), "Documents/ENSAI/FCT/datasets/data")
     DATASETS = {
         "dior_train": {
             "img_dir":

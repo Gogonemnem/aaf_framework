@@ -48,10 +48,10 @@ class BaseFusionModule(nn.Module):
 
 
 
-@registry.FUSION_MODULE.register("IDENTITY")
-class FusionIdentity(BaseFusionModule):
+@registry.FUSION_MODULE.register
+class IDENTITY(BaseFusionModule):
     def __init__(self, *args):
-        super(FusionIdentity, self).__init__(*args)
+        super().__init__(*args)
         self.in_mode = AAFIOMode.ID
         self.out_mode = AAFIOMode.Q_BNCHW
 
@@ -78,10 +78,10 @@ class FusionIdentity(BaseFusionModule):
         features.update({self.output_name: query_features})
 
 
-@registry.FUSION_MODULE.register("ADD")
-class FusionAdd(BaseFusionModule):
+@registry.FUSION_MODULE.register
+class ADD(BaseFusionModule):
     def __init__(self, *args):
-        super(FusionAdd, self).__init__(*args)
+        super().__init__(*args)
 
     def forward(self, features):
 
@@ -103,10 +103,10 @@ class FusionAdd(BaseFusionModule):
         features.update({self.output_name: query_support_merged})
 
 
-@registry.FUSION_MODULE.register("HADAMARD")
-class FusionHadamard(BaseFusionModule):
+@registry.FUSION_MODULE.register
+class HADAMARD(BaseFusionModule):
     def __init__(self, *args):
-        super(FusionHadamard, self).__init__(*args)
+        super().__init__(*args)
 
     def forward(self, features):
 
@@ -128,10 +128,10 @@ class FusionHadamard(BaseFusionModule):
         features.update({self.output_name: query_support_merged})
 
 
-@registry.FUSION_MODULE.register("SUBSTRACT")
-class FusionSub(BaseFusionModule):
+@registry.FUSION_MODULE.register
+class SUBSTRACT(BaseFusionModule):
     def __init__(self, *args):
-        super(FusionSub, self).__init__(*args)
+        super().__init__(*args)
 
     def forward(self, features):
 
@@ -153,10 +153,10 @@ class FusionSub(BaseFusionModule):
         features.update({self.output_name: query_support_merged})
 
 
-@registry.FUSION_MODULE.register("CONCAT")
-class FusionConcat(BaseFusionModule):
+@registry.FUSION_MODULE.register
+class CONCAT(BaseFusionModule):
     def __init__(self, *args):
-        super(FusionConcat, self).__init__(*args)
+        super().__init__(*args)
 
         # self.output_net = nn.Sequential(nn.Conv2d(512, 256, 3, 1, 1),
         #                                 nn.ReLU())
@@ -185,10 +185,10 @@ class FusionConcat(BaseFusionModule):
         features.update({self.output_name: query_support_merged})
 
 
-@registry.FUSION_MODULE.register("META_FASTER")
-class FusionMeta(BaseFusionModule):
+@registry.FUSION_MODULE.register
+class META_FASTER(BaseFusionModule):
     def __init__(self, *args):
-        super(FusionMeta, self).__init__(*args)
+        super(self).__init__(*args)
 
         self.hadamard_net = nn.Sequential(nn.Conv2d(256, 256, 3, 1, 1),
                                             nn.ReLU())
@@ -228,10 +228,10 @@ class FusionMeta(BaseFusionModule):
         features.update({self.output_name: query_support_merged})
 
 
-@registry.FUSION_MODULE.register("DYNAMIC_R")
-class FusionDynamicR(BaseFusionModule):
+@registry.FUSION_MODULE.register
+class DYNAMIC_R(BaseFusionModule):
     def __init__(self, *args):
-        super(FusionDynamicR, self).__init__(*args)
+        super().__init__(*args)
 
         self.hadamard_net = nn.Sequential(nn.Conv2d(256, 256, 3, 1, 1),
                                           nn.ReLU())

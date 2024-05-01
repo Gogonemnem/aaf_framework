@@ -71,8 +71,8 @@ class RPNHeadFeatureSingleConv(nn.Module):
         return x
 
 
-@registry.RPN_HEADS.register("SingleConvRPNHead")
-class RPNHead(nn.Module):
+@registry.RPN_HEADS.register
+class SingleConvRPNHead(nn.Module):
     """
     Adds a simple RPN Head with classification and regression heads
     """
@@ -84,7 +84,7 @@ class RPNHead(nn.Module):
             in_channels (int): number of channels of the input feature
             num_anchors (int): number of anchors to be predicted
         """
-        super(RPNHead, self).__init__()
+        super().__init__()
         self.conv = nn.Conv2d(
             in_channels, in_channels, kernel_size=3, stride=1, padding=1
         )

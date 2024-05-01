@@ -40,10 +40,10 @@ class BaseAttention(nn.Module):
         pass
 
 
-@registry.ATTENTION_MODULE.register("IDENTITY")
-class AttentionIdentity(BaseAttention):
+@registry.ATTENTION_MODULE.register
+class IDENTITY(BaseAttention):
     def __init__(self, *args):
-        super(AttentionIdentity, self).__init__(*args)
+        super().__init__(*args)
         self.in_mode = AAFIOMode.ID
         self.out_mode = AAFIOMode.ID
 
@@ -75,10 +75,10 @@ class AttentionIdentity(BaseAttention):
 
 
 
-@registry.ATTENTION_MODULE.register("REWEIGHTING")
-class AttentionRW(BaseAttention):
+@registry.ATTENTION_MODULE.register
+class REWEIGHTING(BaseAttention):
     def __init__(self, *args):
-        super(AttentionRW, self).__init__(*args)
+        super().__init__(*args)
 
         self.pooled_vectors = None
 
@@ -117,10 +117,10 @@ class AttentionRW(BaseAttention):
         })
 
 
-@registry.ATTENTION_MODULE.register("REWEIGHTING_BATCH")
-class AttentionRWB(BaseAttention):
+@registry.ATTENTION_MODULE.register
+class REWEIGHTING_BATCH(BaseAttention):
     def __init__(self, *args):
-        super(AttentionRWB, self).__init__(*args)
+        super().__init__(*args)
 
         self.pooled_vectors = None
 
@@ -168,10 +168,10 @@ class AttentionRWB(BaseAttention):
 
 
 
-@registry.ATTENTION_MODULE.register("SELF_ATTENTION")
-class AttentionSelf(BaseAttention):
+@registry.ATTENTION_MODULE.register
+class SELF_ATTENTION(BaseAttention):
     def __init__(self, *args):
-        super(AttentionSelf, self).__init__(*args)
+        super().__init__(*args)
 
         self.pooled_vectors = None
 
@@ -196,10 +196,10 @@ class AttentionSelf(BaseAttention):
         })
 
 
-@registry.ATTENTION_MODULE.register("BGA")
-class BackgroundAttention(BaseAttention):
+@registry.ATTENTION_MODULE.register
+class BGA(BaseAttention):
     def __init__(self, *args):
-        super(BackgroundAttention, self).__init__(*args)
+        super().__init__(*args)
 
         self.pooled_vectors = None
 
@@ -223,10 +223,10 @@ class BackgroundAttention(BaseAttention):
         })
 
 
-@registry.ATTENTION_MODULE.register("META_FASTER")
-class SimAttention(BaseAttention):
+@registry.ATTENTION_MODULE.register
+class META_FASTER(BaseAttention):
     def __init__(self, *args):
-        super(SimAttention, self).__init__(*args)
+        super().__init__(*args)
 
         self.pooled_vectors = None
 
@@ -258,10 +258,10 @@ class SimAttention(BaseAttention):
             'support' + self.output_name: support_reweight
         })
 
-@registry.ATTENTION_MODULE.register("POOLING")
-class PoolingAttention(BaseAttention):
+@registry.ATTENTION_MODULE.register
+class POOLING(BaseAttention):
     def __init__(self, *args):
-        super(PoolingAttention, self).__init__(*args)
+        super().__init__(*args)
 
         self.pooling_size = 7
 
@@ -308,10 +308,10 @@ class PoolingAttention(BaseAttention):
         })
 
 
-@registry.ATTENTION_MODULE.register("INTERPOLATE")
-class InterpolateAttention(BaseAttention):
+@registry.ATTENTION_MODULE.register
+class INTERPOLATE(BaseAttention):
     def __init__(self, *args):
-        super(InterpolateAttention, self).__init__(*args)
+        super().__init__(*args)
 
 
     def forward(self, features):
@@ -341,10 +341,10 @@ class InterpolateAttention(BaseAttention):
         })
 
 
-@registry.ATTENTION_MODULE.register("GRU")
-class GRUAttention(BaseAttention):
+@registry.ATTENTION_MODULE.register
+class GRU(BaseAttention):
     def __init__(self, *args):
-        super(GRUAttention, self).__init__(*args)
+        super().__init__(*args)
         self.relation_gru = RelationGRU(self.cfg.MODEL.RESNETS.BACKBONE_OUT_CHANNELS)
 
         self.in_mode = AAFIOMode.Q_BCHW_S_NCHW

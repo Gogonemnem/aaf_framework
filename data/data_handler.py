@@ -10,7 +10,7 @@ from detectron2.utils import comm
 from . import datasets as D
 from . import samplers
 from .build import build_dataset, make_batch_data_sampler
-from fcos.core.data import BatchCollator, BBoxAugCollator
+from fcos.core.data.collate_batch import BatchCollator, BBoxAugCollator
 from .example_selector import ExampleSelector
 from .rng_handler import RNGHandler
 from .samplers.fs_sampler import FilteringSampler, SupportSampler
