@@ -1,5 +1,6 @@
 import torch
 import os
+from contextlib import nullcontext
 
 import numpy as np
 
@@ -11,6 +12,9 @@ from pycocotools.cocoeval import COCOeval
 
 from tqdm import tqdm
 import json
+
+# dirty hack to remove prints from pycocotools
+from ..utils import HiddenPrints
 
 
 class Evaluator():
@@ -52,13 +56,15 @@ class Evaluator():
         predictions = self.collect_model_predictions(loaders)
         has_predictions = sum(len(pred) for pred in predictions) > 0
 
-        if has_predictions:
+        if not has_predictions:
+            return {}
+        
+        context_manager = HiddenPrints() if not verbose else nullcontext()
+        with context_manager:
             dataset = loaders[0].dataset if isinstance(loaders, tuple) else loaders.dataset
             self.save_coco_results(predictions, dataset)
             results = self.perform_coco_evaluation(dataset, verbose, per_category)
             return results
-        else:
-            return {}
 
     def collect_model_predictions(self, loaders, verbose=False):
         query_loader, support_loader = loaders[:2] if self.cfg.FEWSHOT.ENABLED else (loaders, None)
@@ -122,44 +128,42 @@ class Evaluator():
         Run coco evaluation using pycocotools. 
         """
         sep = f'+{"-"*77}+'
-        coco_gt = dataset.coco
-        json_result_file = os.path.join(self.output_folder, 'coco_results.json')
-        coco_dt = coco_gt.loadRes(json_result_file)
-        coco_eval = COCOeval(coco_gt, coco_dt, 'bbox')
-
-        # # dirty hack to remove prints from pycocotools
-        # from ..utils import HiddenPrints
-        # with HiddenPrints():
-        results = {}
-        if per_category:
-            for category_id in self.current_classes:
-                coco_eval.params.catIds = [dataset.contiguous_category_id_to_json_id[category_id]]
-                coco_eval.params.imgIds = list(set([
-                    det['image_id'] for det in list(coco_dt.anns.values())
-                ]))
-                coco_eval.evaluate()
-                coco_eval.accumulate()
-                results[self.categories[category_id]] = coco_eval
-
-                if verbose:
-                    print(f'{sep}')
-                    print(f'\tResults for class {self.categories[category_id]}:')
-                    print(f'{sep}')
-                    coco_eval.summarize()
-                    
         
+        json_result_file = os.path.join(self.output_folder, 'coco_results.json')
+        coco_gt = dataset.coco
+        coco_dt = coco_gt.loadRes(json_result_file)
+
+        coco_eval = COCOeval(coco_gt, coco_dt, 'bbox')
         coco_eval.params.catIds = [dataset.contiguous_category_id_to_json_id[c] for c in self.current_classes]
         coco_eval.params.imgIds = list(set([det['image_id'] for det in list(coco_dt.anns.values())]))
         coco_eval.evaluate()
         coco_eval.accumulate()
-        results['overall'] = coco_eval
 
-        if verbose:
+        print(f'{sep}')
+        print('\tOverall results:')
+        print(f'{sep}')
+        coco_eval.summarize()
+
+        results = {'overall': coco_eval}
+        
+        if not per_category:
+            return results
+
+        for category_id in self.current_classes:
+            coco_eval.params.catIds = [dataset.contiguous_category_id_to_json_id[category_id]]
+            coco_eval.params.imgIds = list(set([det['image_id'] for det in list(coco_dt.anns.values())]))
+            coco_eval.evaluate()
+            coco_eval.accumulate()
+
             print(f'{sep}')
-            print('\tOverall results:')
+            print(f'\tResults for class {self.categories[category_id]}:')
             print(f'{sep}')
             coco_eval.summarize()
+
+            results[self.categories[category_id]] = coco_eval
         return results
+        
+        
 
     def predict(self, query_loader, support_loader=None, classes=None):
         """
