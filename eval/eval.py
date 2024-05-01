@@ -50,10 +50,10 @@ class Evaluator():
 
         loaders = loaders or self.data_handler.get_dataloader(seed=seed)
         predictions = self.collect_model_predictions(loaders)
+        has_predictions = sum(len(pred) for pred in predictions) > 0
 
-        if self.has_predictions(predictions):
+        if has_predictions:
             dataset = loaders[0].dataset if isinstance(loaders, tuple) else loaders.dataset
-
             self.save_coco_results(predictions, dataset)
             results = self.perform_coco_evaluation(dataset, verbose, per_category)
             return results
@@ -149,9 +149,7 @@ class Evaluator():
                     
         
         coco_eval.params.catIds = [dataset.contiguous_category_id_to_json_id[c] for c in self.current_classes]
-        coco_eval.params.imgIds = list(set([
-            det['image_id'] for det in list(coco_dt.anns.values())
-        ]))
+        coco_eval.params.imgIds = list(set([det['image_id'] for det in list(coco_dt.anns.values())]))
         coco_eval.evaluate()
         coco_eval.accumulate()
         results['overall'] = coco_eval
@@ -187,9 +185,6 @@ class Evaluator():
                     predictions.append(pred.to('cpu'))
 
         return predictions
-
-    def has_predictions(self, predictions):
-        return sum(len(pred) for pred in predictions) > 0
 
 
     ### From here on, i dont know where it gets called.

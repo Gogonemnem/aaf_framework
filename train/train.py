@@ -13,7 +13,6 @@ from torch.nn.parallel import DistributedDataParallel
 import detectron2.utils.comm as comm
 
 from fcos.core.utils.metric_logger import MetricLogger
-from fcos.core.engine.trainer import reduce_loss_dict
 
 from ..modeling.detector import build_detection_model
 from .utils import make_lr_scheduler, make_optimizer
@@ -278,7 +277,7 @@ class Trainer():
         losses = sum(loss for loss in loss_dict.values())
 
         # reduce losses over all GPUs for logging purposes
-        loss_dict_reduced = reduce_loss_dict(loss_dict)
+        loss_dict_reduced = comm.reduce_dict(loss_dict)
         losses_reduced = sum(loss for loss in loss_dict_reduced.values())
 
         losses_reduced /= self.cfg.SOLVER.ACCUMULATION_STEPS
