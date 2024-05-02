@@ -277,14 +277,10 @@ class Trainer():
         images = images.to(self.device)
         targets = [target.to(self.device) for target in targets]
         loss_dict = self.model(images, targets, classes=classes, support=support)
-        # losses = sum(loss for loss in loss_dict.values())
+        losses = sum(loss for loss in loss_dict.values())
 
-        # reduce losses over all GPUs for logging purposes
-        loss_dict_reduced = comm.reduce_dict(loss_dict)
-        losses_reduced = sum(loss for loss in loss_dict_reduced.values())
-
-        losses_reduced /= self.cfg.SOLVER.ACCUMULATION_STEPS
-        losses_reduced.backward()
+        losses /= self.cfg.SOLVER.ACCUMULATION_STEPS
+        losses.backward()
 
         # torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5.0) # use only for MFRCN to reduce unstability
 
@@ -292,6 +288,10 @@ class Trainer():
             self.optimizer.step()
             self.optimizer.zero_grad()
             self.scheduler.step()
+
+        # reduce losses over all GPUs for logging purposes
+        loss_dict_reduced = comm.reduce_dict(loss_dict)
+        losses_reduced = sum(loss for loss in loss_dict_reduced.values())
 
         return losses_reduced, loss_dict_reduced
 
