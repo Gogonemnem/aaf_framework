@@ -64,3 +64,55 @@ class DistributedSampler(Sampler):
 
     def set_epoch(self, epoch):
         self.epoch = epoch
+
+class DistributedCustomSampler(Sampler):
+    def __init__(self, dataset, base_sampler, num_replicas=None, rank=None, shuffle=True):
+        self.dataset = dataset
+        self.base_sampler = base_sampler  # base_sampler is expected to yield the entire set of indices for the dataset
+        self.shuffle = shuffle
+
+        if num_replicas is None:
+            if not torch.distributed.is_available():
+                raise RuntimeError("Requires distributed package to be available")
+            num_replicas = torch.distributed.get_world_size()
+        if rank is None:
+            if not torch.distributed.is_available():
+                raise RuntimeError("Requires distributed package to be available")
+            rank = torch.distributed.get_rank()
+
+        self.num_replicas = num_replicas
+        self.rank = rank
+        self.epoch = 0
+
+        # We only need a fraction of the dataset per GPU
+        self.num_samples = int(math.ceil(len(dataset) / self.num_replicas))  # Total samples per GPU
+
+    def __iter__(self):
+        # Generate indices from the base sampler
+        base_indices = list(self.base_sampler)
+
+        # Shuffle if required
+        if self.shuffle:
+            g = torch.Generator()
+            g.manual_seed(self.epoch)
+            shuffled_indices = torch.randperm(len(base_indices), generator=g).tolist()
+            base_indices = [base_indices[i] for i in shuffled_indices]
+
+        # Calculate total number of samples needed to be equally distributed
+        total_size = self.num_samples * self.num_replicas
+        padding_size = total_size - len(base_indices)
+        if padding_size > 0:
+            base_indices += base_indices[:padding_size]
+
+        # Subsample for this specific GPU
+        indices = base_indices[self.rank * self.num_samples: (self.rank + 1) * self.num_samples]
+        assert len(indices) == self.num_samples
+
+        return iter(indices)
+
+    def __len__(self):
+        return self.num_samples
+
+    def set_epoch(self, epoch):
+        self.epoch = epoch
+

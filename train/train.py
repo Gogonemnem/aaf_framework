@@ -9,7 +9,7 @@ from tqdm import tqdm
 import torch
 from torch.nn.parallel import DistributedDataParallel
 
-from  detectron2.utils import comm
+from detectron2.utils import comm
 from fcos.core.utils.metric_logger import MetricLogger
 
 from ..data.data_handler import DataHandler

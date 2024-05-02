@@ -4,6 +4,7 @@ import copy
 import logging
 
 import torch.utils.data
+from torch.utils.data.sampler import BatchSampler, RandomSampler, SequentialSampler
 from detectron2.utils.comm import get_world_size
 from detectron2.utils.env import _import_file as import_file
 
@@ -62,11 +63,11 @@ def build_dataset(dataset_list, transforms, dataset_catalog, cfg=None, is_train=
 
 def make_data_sampler(dataset, shuffle, distributed):
     if distributed:
-        return samplers.DistributedSampler(dataset, shuffle=shuffle)
-    if shuffle:
-        sampler = torch.utils.data.sampler.RandomSampler(dataset)
+        sampler = samplers.DistributedSampler(dataset, shuffle=shuffle)
+    elif shuffle:
+        sampler = RandomSampler(dataset)
     else:
-        sampler = torch.utils.data.sampler.SequentialSampler(dataset)
+        sampler = SequentialSampler(dataset)
     return sampler
 
 
@@ -86,28 +87,20 @@ def _compute_aspect_ratios(dataset):
     return aspect_ratios
 
 
-def make_batch_data_sampler(
-    dataset, sampler, aspect_grouping, images_per_batch, num_iters=None, start_iter=0, is_support=False
-):
-    if aspect_grouping:
+def make_batch_data_sampler(dataset, sampler, aspect_grouping, images_per_batch, num_iters=None, start_iter=0, is_fewshot=False, is_support=False):
+    if is_fewshot:
+        return BatchSampler(sampler, images_per_batch, drop_last=False)
+    elif aspect_grouping:
         if not isinstance(aspect_grouping, (list, tuple)):
             aspect_grouping = [aspect_grouping]
         aspect_ratios = _compute_aspect_ratios(dataset)
         group_ids = _quantize(aspect_ratios, aspect_grouping)
         if is_support:
-            batch_sampler = samplers.SupportGroupedBatchSampler(
-            sampler, group_ids, images_per_batch, drop_uneven=False
-            )
+            batch_sampler = samplers.SupportGroupedBatchSampler(sampler, group_ids, images_per_batch, drop_uneven=False)
         else:
-            batch_sampler = samplers.GroupedBatchSampler(
-            sampler, group_ids, images_per_batch, drop_uneven=False
-            )
+            batch_sampler = samplers.GroupedBatchSampler(sampler, group_ids, images_per_batch, drop_uneven=False)
     else:
-        batch_sampler = torch.utils.data.sampler.BatchSampler(
-            sampler, images_per_batch, drop_last=False
-        )
+        batch_sampler = BatchSampler(sampler, images_per_batch, drop_last=False)
     if num_iters is not None:
-        batch_sampler = samplers.IterationBasedBatchSampler(
-            batch_sampler, num_iters, start_iter
-        )
+        batch_sampler = samplers.IterationBasedBatchSampler(batch_sampler, num_iters, start_iter)
     return batch_sampler
