@@ -1,25 +1,23 @@
-import math
-from tqdm import tqdm
-
-import os
 import datetime
 import logging
-import time
+import math
+import os
 import sys
+import time
 
+from tqdm import tqdm
 import torch
 from torch.nn.parallel import DistributedDataParallel
 
-import detectron2.utils.comm as comm
-
+from  detectron2.utils import comm
 from fcos.core.utils.metric_logger import MetricLogger
 
-from ..modeling.detector import build_detection_model
-from .utils import make_lr_scheduler, make_optimizer
 from ..data.data_handler import DataHandler
-from ..utils.checkpointer import DetectronCheckpointer
 from ..eval import Evaluator
+from ..modeling.detector import build_detection_model
+from ..utils.checkpointer import DetectronCheckpointer
 from ..utils.custom_logger import CustomLogger
+from .utils import make_lr_scheduler, make_optimizer
 
 
 class Trainer():
@@ -36,21 +34,21 @@ class Trainer():
         self.setup_environment()
         if comm.is_main_process():
             self.setup_logging()
-            self.logger.info("Model:\n{}".format(self.model))
+            self.logger.info(f"Model:\n{self.model}")
 
         self.episodes = cfg.FEWSHOT.EPISODES
         self.logging_int = cfg.LOGGING.INTERVAL
         self.logging_eval_int = cfg.LOGGING.EVAL_INTERVAL
         self.checkpoint_period = cfg.SOLVER.CHECKPOINT_PERIOD
 
-        self.fintuning_start_iter = 0
+        self.finetuning_start_iter = 0
 
         extra_checkpoint_data = self.checkpointer.load(self.cfg.MODEL.WEIGHT)
         self.arguments.update(extra_checkpoint_data)
 
         self.evaluator_test = None
         self.evaluator_train = None
-    
+
     def setup_model(self):
         self.model = build_detection_model(self.cfg).to(self.device)
 
@@ -108,19 +106,19 @@ class Trainer():
     def train_base(self):
         """Perform base training."""
         data_handler = DataHandler(self.cfg, base_classes=True, is_train=True,
-                                  start_iter=self.arguments['iteration'])
+                                   start_iter=self.arguments['iteration'])
         self.run_training_loop(data_handler)
 
     def train_few_shot(self):
         """Perform few-shot training and fine-tuning as configured."""
         data_handler = DataHandler(self.cfg, base_classes=True, is_train=True,
-                                  start_iter=self.arguments['iteration'])
+                                   start_iter=self.arguments['iteration'])
         data_handler.task_sampler.display_classes()
         self.run_training_loop(data_handler, is_few_shot=True)
-        
+
         if not self.cfg.FINETUNING:
             return
-        
+
         self.is_finetuning = True
         self.finetuning_start_iter = self.max_iter
         for k_shot in self.cfg.FINETUNE.SHOTS:
@@ -129,13 +127,15 @@ class Trainer():
             # updates with each shots.
             episodes = self.calculate_episodes(k_shot)
             self.prepare_finetuning(k_shot, episodes)
-            data_handler = DataHandler(self.cfg,
-                                        base_classes=False,
-                                        is_train=True,
-                                        start_iter=self.arguments['iteration'],
-                                        is_finetune=True)
+            data_handler = DataHandler(
+                self.cfg,
+                base_classes=False,
+                is_train=True,
+                start_iter=self.arguments['iteration'],
+                is_finetune=True
+                )
             data_handler.task_sampler.display_classes()
-            self.run_fs_training_loop(data_handler)
+            self.run_training_loop(data_handler)
     
     def calculate_episodes(self, k_shot):
         """Calculate the number of training episodes based on configuration."""
@@ -165,7 +165,7 @@ class Trainer():
         # Update cfg
         self.cfg.merge_from_list(['FEWSHOT.K_SHOT', k_shot])
 
-    def run_training_loop(self, data_handler, is_few_shot=False):
+    def run_training_loop(self, data_handler: DataHandler, is_few_shot=False):
         """
         Training loop for both base and few-shot training.
         """
@@ -181,12 +181,12 @@ class Trainer():
         if is_few_shot:
             query_loader, _, _ = data_handler.get_dataloader()
             iter_epoch = len(query_loader)
-            self.max_iter = iter_epoch * self.episodes + start_iter
+            self.max_iter = iter_epoch * self.episodes + self.finetuning_start_iter
         else:
             data_loader = data_handler.get_dataloader()
             self.max_iter = len(data_loader)
         
-        current_iter = start_iter
+        current_iter = 0
         steps_per_update = self.cfg.SOLVER.ACCUMULATION_STEPS
         accumulation_count = 0
         
@@ -199,24 +199,29 @@ class Trainer():
                 loader = query_loader
             else:
                 train_classes = None
+                support_loader = None
                 loader = data_loader
+
+            if current_iter + iter_epoch <= start_iter:
+                current_iter += iter_epoch
+                continue
 
             if comm.is_main_process():
                 loader = tqdm(loader)
 
                 if is_few_shot:
                     self.logger.info(f'Episode {epoch + 1}: classes = {train_classes}')
-    
+
             for images, targets, _ in loader:
                 current_iter += 1
                 if current_iter < start_iter:
                     continue
-                
+
                 self.arguments["iteration"] = current_iter
 
                 if comm.is_main_process():
                     data_time = time.time() - end
-                
+
                 support_features = None
                 if is_few_shot:
                     if self.distributed:
@@ -262,11 +267,9 @@ class Trainer():
         total_training_time = time.time() - start_training_time
         total_time_str = str(datetime.timedelta(seconds=total_training_time))
         self.logger.info(
-            "Total {} time: {} ({:.4f} s / it)".format(
-                'base training' if not self.is_finetuning else 'finetuning',
-                total_time_str, total_training_time / (self.max_iter + 1)
+            f"Total {'base training' if not self.is_finetuning else 'finetuning'} "
+            f"time: {total_time_str} ({total_training_time / (self.max_iter + 1):.4f} s / it)"
             )
-        )
         self.save_checkpoint("final_model", is_few_shot)
 
     def train_step(self, images, targets, classes=None, support=None, accumulate=False):
@@ -274,7 +277,7 @@ class Trainer():
         images = images.to(self.device)
         targets = [target.to(self.device) for target in targets]
         loss_dict = self.model(images, targets, classes=classes, support=support)
-        losses = sum(loss for loss in loss_dict.values())
+        # losses = sum(loss for loss in loss_dict.values())
 
         # reduce losses over all GPUs for logging purposes
         loss_dict_reduced = comm.reduce_dict(loss_dict)
@@ -282,14 +285,14 @@ class Trainer():
 
         losses_reduced /= self.cfg.SOLVER.ACCUMULATION_STEPS
         losses_reduced.backward()
-        
+
         # torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5.0) # use only for MFRCN to reduce unstability
 
         if not accumulate:
             self.optimizer.step()
             self.optimizer.zero_grad()
             self.scheduler.step()
-        
+
         return losses_reduced, loss_dict_reduced
 
     def log_metrics(self, losses, loss_dict, iteration):
@@ -312,7 +315,7 @@ class Trainer():
         )
         if sys.gettrace() is None:
             self.tensorboard.add_multi_scalars(self.meters.meters, iteration)
-    
+
     def eval(self, iteration, is_few_shot=False):
         """
         Perform evaluation, handling both few-shot and regular scenarios based on the is_few_shot flag.
@@ -330,7 +333,7 @@ class Trainer():
             # Initialize or use existing evaluator for test classes only if in few-shot mode
             if self.evaluator_test is None:
                 self.evaluator_test = self.create_evaluator(is_train_class=False, is_few_shot=is_few_shot)
-            
+
             # Perform evaluation and retrieve results for test classes
             res_test = self.evaluator_test.eval(verbose=False, per_category=False)['overall']
             test_map = res_test.stats[1] if res_test != {} else 0
@@ -342,7 +345,7 @@ class Trainer():
         if comm.is_main_process():
             self.tensorboard.add_multi_scalars(eval_res, iteration, main_tag='Eval')
         self.model.train()
-    
+
     def create_evaluator(self, is_train_class, is_few_shot):
         """
         Create an evaluator based on the class type and whether it is few-shot training.
@@ -350,7 +353,7 @@ class Trainer():
         base_classes = is_train_class or not is_few_shot
         data_handler = DataHandler(self.cfg, base_classes=base_classes, data_source='val', is_train=False)
         return Evaluator(self.model, self.cfg, data_handler)
-    
+
     def save_checkpoint(self, model_name, is_few_shot=False):
         if is_few_shot:
             model_name = f"{model_name}_{self.cfg.FEWSHOT.K_SHOT}shot"
@@ -360,5 +363,3 @@ class Trainer():
             model_name = f"{model_name}_base"
 
         self.checkpointer.save(model_name, **self.arguments)
-
-    
