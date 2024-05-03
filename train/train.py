@@ -135,7 +135,7 @@ class Trainer():
                 is_finetune=True
                 )
             data_handler.task_sampler.display_classes()
-            self.run_training_loop(data_handler)
+            self.run_training_loop(data_handler, is_few_shot=True)
     
     def calculate_episodes(self, k_shot):
         """Calculate the number of training episodes based on configuration."""
@@ -179,12 +179,13 @@ class Trainer():
             end = time.time()
 
         if is_few_shot:
-            loader, _, _ = data_handler.get_dataloader()
+            query_loader, _, _ = data_handler.get_dataloader()
+            iter_epoch = len(query_loader)
+            self.max_iter = iter_epoch * self.episodes + self.finetuning_start_iter
         else:
-            loader = data_handler.get_dataloader()
-        
-        iter_epoch = len(loader) if not is_few_shot else len(loader) * self.episodes
-        self.max_iter = iter_epoch + self.finetuning_start_iter
+            data_loader = data_handler.get_dataloader()
+            iter_epoch = len(data_loader)
+            self.max_iter = iter_epoch + self.finetuning_start_iter
         
         current_iter = 0
         steps_per_update = self.cfg.SOLVER.ACCUMULATION_STEPS
