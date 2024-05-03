@@ -179,12 +179,12 @@ class Trainer():
             end = time.time()
 
         if is_few_shot:
-            query_loader, _, _ = data_handler.get_dataloader()
-            iter_epoch = len(query_loader)
-            self.max_iter = iter_epoch * self.episodes + self.finetuning_start_iter
+            loader, _, _ = data_handler.get_dataloader()
         else:
-            data_loader = data_handler.get_dataloader()
-            self.max_iter = len(data_loader)
+            loader = data_handler.get_dataloader()
+        
+        iter_epoch = len(loader) if not is_few_shot else len(loader) * self.episodes
+        self.max_iter = iter_epoch * self.episodes + self.finetuning_start_iter
         
         current_iter = 0
         steps_per_update = self.cfg.SOLVER.ACCUMULATION_STEPS
@@ -193,14 +193,13 @@ class Trainer():
         for epoch in range(self.episodes if is_few_shot else 1):
             if is_few_shot:
                 # Reload dataloader for each few-shot episode
-                query_loader, support_loader, train_classes = data_handler.get_dataloader(
+                loader, support_loader, train_classes = data_handler.get_dataloader(
                     seed=self.cfg.RANDOM.SEED if self.is_finetuning else None
                     )
-                loader = query_loader
             else:
                 train_classes = None
                 support_loader = None
-                loader = data_loader
+                loader = data_handler.get_dataloader()
 
             if current_iter + iter_epoch <= start_iter:
                 current_iter += iter_epoch
