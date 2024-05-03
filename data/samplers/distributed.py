@@ -6,6 +6,8 @@ import torch
 import torch.distributed as dist
 from torch.utils.data.sampler import Sampler
 
+from .fs_sampler import SupportSampler
+
 
 class DistributedSampler(Sampler):
     """Sampler that restricts data loading to a subset of the dataset.
@@ -65,47 +67,51 @@ class DistributedSampler(Sampler):
     def set_epoch(self, epoch):
         self.epoch = epoch
 
-class DistributedCustomSampler(Sampler):
-    def __init__(self, dataset, base_sampler, num_replicas=None, rank=None, shuffle=True):
-        self.dataset = dataset
-        self.base_sampler = base_sampler  # base_sampler is expected to yield the entire set of indices for the dataset
-        self.shuffle = shuffle
+class DistributedIndexSampler(Sampler):
+    """Sampler that restricts data loading to a subset of the dataset.
+    This modified version assumes that 'dataset' is actually a list of indices.
+    It is especially useful in conjunction with
+    :class:`torch.nn.parallel.DistributedDataParallel`. In such case, each
+    process can pass a DistributedSampler instance as a DataLoader sampler,
+    and load a subset of the indices that are exclusive to it.
+    """
 
+    def __init__(self, indices, num_replicas=None, rank=None, shuffle=True):
         if num_replicas is None:
-            if not torch.distributed.is_available():
+            if not dist.is_available():
                 raise RuntimeError("Requires distributed package to be available")
-            num_replicas = torch.distributed.get_world_size()
+            num_replicas = dist.get_world_size()
         if rank is None:
-            if not torch.distributed.is_available():
+            if not dist.is_available():
                 raise RuntimeError("Requires distributed package to be available")
-            rank = torch.distributed.get_rank()
-
+            rank = dist.get_rank()
+        self.indices = list(indices)  # Assumes indices are passed instead of a dataset
         self.num_replicas = num_replicas
         self.rank = rank
         self.epoch = 0
-
-        # We only need a fraction of the dataset per GPU
-        self.num_samples = int(math.ceil(len(dataset) / self.num_replicas))  # Total samples per GPU
+        self.num_samples = int(math.ceil(len(self.indices) / self.num_replicas))
+        self.total_size = self.num_samples * self.num_replicas
+        self.shuffle = shuffle
 
     def __iter__(self):
-        # Generate indices from the base sampler
-        base_indices = list(self.base_sampler)
-
-        # Shuffle if required
+        # If shuffle is enabled, shuffle indices deterministically based on the epoch
         if self.shuffle:
             g = torch.Generator()
             g.manual_seed(self.epoch)
-            shuffled_indices = torch.randperm(len(base_indices), generator=g).tolist()
-            base_indices = [base_indices[i] for i in shuffled_indices]
+            indices = torch.tensor(self.indices)[torch.randperm(len(self.indices), generator=g)].tolist()
+        else:
+            indices = self.indices
 
-        # Calculate total number of samples needed to be equally distributed
-        total_size = self.num_samples * self.num_replicas
-        padding_size = total_size - len(base_indices)
+        # Add extra indices to make the total size divisible by the number of replicas
+        padding_size = self.total_size - len(indices)
         if padding_size > 0:
-            base_indices += base_indices[:padding_size]
+            indices += indices[:padding_size]
+        assert len(indices) == self.total_size
 
-        # Subsample for this specific GPU
-        indices = base_indices[self.rank * self.num_samples: (self.rank + 1) * self.num_samples]
+        # Subsample indices for this particular rank
+        start = self.rank * self.num_samples
+        end = start + self.num_samples
+        indices = indices[start:end]
         assert len(indices) == self.num_samples
 
         return iter(indices)
@@ -115,4 +121,3 @@ class DistributedCustomSampler(Sampler):
 
     def set_epoch(self, epoch):
         self.epoch = epoch
-

@@ -17,17 +17,19 @@ from .samplers.fs_sampler import FilteringSampler, SupportSampler
 from .task_sampling import TaskSampler
 from .transforms import build_transforms
 from ..utils import HiddenPrints
+import math
 
 
 class DataHandler():
     def __init__(self,
-                cfg,
-                base_classes=True,
-                start_iter=0,
-                data_source='train',
-                eval_all=False,
-                is_train=False,
-                is_finetune=False):
+                 cfg,
+                 base_classes=True,
+                 start_iter=0,
+                 data_source='train',
+                 eval_all=False,
+                 is_train=False,
+                 is_finetune=False, 
+                 seed=None):
         """
         Object to manage datasets and dataloader. It can be used in a fewshot setting
         yielding loader for query and support sets or in a regular manner (only one loader).
@@ -41,7 +43,6 @@ class DataHandler():
         - is_train: specifies whether network is training or not to select parameters accordingly
         - is_finetune: specifies whether network is finetuning or not. This changes how examples are selected in dataset
         """
-
         self.cfg = cfg
         self.base_classes = base_classes
         self.start_iter = start_iter
@@ -58,6 +59,9 @@ class DataHandler():
         # the dataloader to fix it.
         self.rng_handler_fixed = RNGHandler(cfg)
         self.rng_handler_free = RNGHandler(cfg)
+        if seed is not None:
+            self.rng_handler_fixed.update_seeds(seed)
+
         self.example_selector = ExampleSelector(cfg, is_train, is_finetune, self.rng_handler_free)
 
         with HiddenPrints():
@@ -106,12 +110,15 @@ class DataHandler():
         Or 2 dataloaders, 1 for query set and 1 for support set.
 
         """
+        if seed is not None:
+            self.rng_handler_fixed.update_seeds(seed)
+
         if self.cfg.FEWSHOT.ENABLED:
-            return self.handle_fewshot_dataloader(seed)
+            return self.handle_fewshot_dataloader()
         else:
             return self.make_data_loader_filtered(self.get_class_indices(), self.datasets, is_fewshot=False)
         
-    def handle_fewshot_dataloader(self, seed):
+    def handle_fewshot_dataloader(self):
         train_classes, self.test_classes = self.task_sampler.sample_train_val_tasks(self.cfg.FEWSHOT.N_WAYS_TRAIN, self.cfg.FEWSHOT.N_WAYS_TEST, verbose=False)
         if self.eval_all:
             # When eval_all is true, query and support loaders are created
@@ -121,7 +128,7 @@ class DataHandler():
             
             for classes, kind in [(train_classes, 'train'), (self.test_classes, 'test')]:
                 for cls in classes:
-                    loaders[kind].append(self.get_two_loaders(cls, self.datasets, self.support_datasets, seed))
+                    loaders[kind].append(self.get_two_loaders(cls, self.datasets, self.support_datasets))
             return loaders
 
         elif self.is_finetune and self.cfg.FINETUNE.MIXED:
@@ -129,9 +136,9 @@ class DataHandler():
         else:
             classes = train_classes if self.base_classes else self.test_classes
 
-        return self.get_two_loaders(classes, self.datasets, self.support_datasets, seed)
+        return self.get_two_loaders(classes, self.datasets, self.support_datasets)
     
-    def get_two_loaders(self, classes, datasets, support_datasets=None, seed=None):
+    def get_two_loaders(self, classes, datasets, support_datasets=None):
         """
         Arguments:
             classes: list of classes
@@ -139,16 +146,13 @@ class DataHandler():
 
         Return two dataloaders: one for query set and one for support and the set of classes. 
         """
-        if seed is not None:
-            self.rng_handler_fixed.update_seeds(seed)
-    
         # Assuming make_data_loader_filtered is where loaders are instantiated
-        query_loader = self.make_data_loader_filtered(torch.Tensor(classes), datasets, seed=seed)
-        support_loader = self.make_data_loader_filtered(torch.Tensor(classes), support_datasets, is_support=True, seed=seed)
+        query_loader = self.make_data_loader_filtered(torch.Tensor(classes), datasets)
+        support_loader = self.make_data_loader_filtered(torch.Tensor(classes), support_datasets, is_support=True)
 
         return query_loader, support_loader, classes
 
-    def make_data_loader_filtered(self, selected_classes, datasets, is_support=False, is_fewshot=True, sampler=None, seed=None):
+    def make_data_loader_filtered(self, selected_classes, datasets, is_support=False, is_fewshot=True, sampler=None):
         """
         Select parameters for the creation of the dataloader
 
@@ -177,22 +181,22 @@ class DataHandler():
                 sampler_options['start_iter'],
                 is_fewshot=is_fewshot,
                 is_support=is_support
-                )   
+                )
             data_loader = self.create_data_loader(dataset, batch_sampler)
             data_loaders.append(data_loader)
 
         self.build_categories_map(data_loaders[0].dataset)
         return data_loaders[0]
-    
+
     def configure_sampler_options(self, is_fewshot):
         num_gpus = comm.get_world_size()
         images_per_batch = self.cfg.SOLVER.IMS_PER_BATCH if self.is_train else self.cfg.TEST.IMS_PER_BATCH
-        images_per_gpu = images_per_batch // num_gpus
+        images_per_gpu = math.ceil(images_per_batch / num_gpus)
 
         return {
             'shuffle': True,
             'images_per_batch': images_per_batch,
-            'images_per_gpu': images_per_gpu,
+            'images_per_gpu': images_per_gpu, 
             'start_iter': self.start_iter if self.is_train else 0,
             'num_iters': None if self.is_train and not is_fewshot else self.cfg.SOLVER.MAX_ITER,
             'aspect_grouping': [1] if self.cfg.DATALOADER.ASPECT_RATIO_GROUPING else []
@@ -219,9 +223,10 @@ class DataHandler():
                     base_sampler = FilteringSampler(dataset, selected_classes, n_query, options['shuffle'], rng=self.rng_handler_fixed.torch_rng)
         else:
             base_sampler = FilteringSampler(dataset, selected_classes, len(dataset), options['shuffle'], rng=self.rng_handler_fixed.torch_rng)
-        # if distributed_sampler is not None and not is_support:
-        #     # Wrap the base sampler to respect the distributed indices
-        #     base_sampler = samplers.DistributedCustomSampler(base_sampler, distributed_sampler)
+
+        if distributed_sampler is not None and not is_support and self.is_train:
+            # Wrap the base sampler to respect the distributed indices
+            base_sampler = samplers.DistributedIndexSampler(base_sampler)
         return base_sampler
     
     def select_examples(self, dataset, selected_classes, n_query):

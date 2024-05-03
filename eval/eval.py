@@ -50,7 +50,7 @@ class Evaluator():
             - all_classes:  
         """
         if seed is not None:
-            self.data_handler.rng_handler.update_seeds(seed)
+            self.data_handler.rng_handler_fixed.update_seeds(seed)
 
         loaders = loaders or self.data_handler.get_dataloader(seed=seed)
         predictions = self.collect_model_predictions(loaders)
@@ -171,7 +171,10 @@ class Evaluator():
         """
         predictions = []
         with torch.no_grad():
-            for (images, targ, img_id) in tqdm(query_loader):
+            if comm.is_main_process():
+                query_loader = tqdm(query_loader)
+
+            for (images, targ, img_id) in query_loader:
                 model = self.model
 
                 if comm.get_world_size() > 1:

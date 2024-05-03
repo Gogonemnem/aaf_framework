@@ -43,7 +43,7 @@ class Trainer():
 
         self.finetuning_start_iter = 0
 
-        extra_checkpoint_data = self.checkpointer.load(self.cfg.MODEL.WEIGHT)
+        extra_checkpoint_data = self.checkpointer.load(cfg.MODEL.WEIGHT)
         self.arguments.update(extra_checkpoint_data)
 
         self.evaluator_test = None
@@ -93,7 +93,7 @@ class Trainer():
 
         self.tensorboard = CustomLogger(log_dir=os.path.join(self.cfg.OUTPUT_DIR, 'logs'), notify=False)
 
-    def train(self):
+    def train(self): 
         """
         Main training loop. Starts base training and multiple finetunings
         with different number of shots after (if finetuning is enabled). 
@@ -236,7 +236,15 @@ class Trainer():
                 accumulation_count += 1
                 if accumulation_count % steps_per_update == 0:
                     accumulation_count = 0  # Reset accumulation count after reaching the accumulation steps
+                
 
+                last_iteration_reached = current_iter == self.max_iter
+                
+                eval_interval_reached = current_iter % self.logging_eval_int == 0
+                should_eval = eval_interval_reached or last_iteration_reached
+                if should_eval:
+                    self.eval(current_iter, is_few_shot=is_few_shot)
+                
                 if not comm.is_main_process():
                     continue
 
@@ -244,17 +252,10 @@ class Trainer():
                 end = time.time()
                 self.meters.update(time_batch=batch_time, time_data=data_time)
 
-                last_iteration_reached = current_iter == self.max_iter
-
                 log_interval_reached = current_iter % self.logging_int == 0
                 should_log = log_interval_reached or last_iteration_reached
                 if should_log:
                     self.log_metrics(losses, loss_dict, current_iter)
-                
-                eval_interval_reached = current_iter % self.logging_eval_int == 0
-                should_eval = eval_interval_reached or last_iteration_reached
-                if should_eval:
-                    self.eval(current_iter, is_few_shot=is_few_shot)
 
                 checkpoint_interval_reached = current_iter % self.checkpoint_period == 0
                 if checkpoint_interval_reached:                    
@@ -320,14 +321,16 @@ class Trainer():
         """
         Perform evaluation, handling both few-shot and regular scenarios based on the is_few_shot flag.
         """
+        metrics = ["AP", "AP50", "AP75", "APs", "APm", "APl"]
+
         self.model.eval()
 
         # Initialize or use existing evaluator for training classes
         if self.evaluator_train is None:
             self.evaluator_train = self.create_evaluator(is_train_class=True, is_few_shot=is_few_shot)
 
-        res_train = self.evaluator_train.eval(verbose=False, per_category=False)['overall']
-        train_map = res_train.stats[1] if res_train != {} else 0
+        res_train = self.evaluator_train.eval(verbose=False, per_category=False, seed=self.cfg.RANDOM.SEED).get('overall', {})
+        metrics_dict = {f"Train {metric}": res_train.stats[id] if res_train != {} else 0 for id, metric in enumerate(metrics)}
 
         if is_few_shot:
             # Initialize or use existing evaluator for test classes only if in few-shot mode
@@ -335,15 +338,12 @@ class Trainer():
                 self.evaluator_test = self.create_evaluator(is_train_class=False, is_few_shot=is_few_shot)
 
             # Perform evaluation and retrieve results for test classes
-            res_test = self.evaluator_test.eval(verbose=False, per_category=False)['overall']
-            test_map = res_test.stats[1] if res_test != {} else 0
-
-            eval_res = {'Train mAP': train_map, 'Test mAP': test_map}
-        else:
-            eval_res = {'Train mAP': train_map}
+            res_test = self.evaluator_test.eval(verbose=False, per_category=False, seed=self.cfg.RANDOM.SEED).get('overall', {})
+            metrics_dict.update({f"Test {metric}": res_test.stats[id] if res_test != {} else 0 for id, metric in enumerate(metrics)})
 
         if comm.is_main_process():
-            self.tensorboard.add_multi_scalars(eval_res, iteration, main_tag='Eval')
+            metrics_dict_reduced = comm.reduce_dict(metrics_dict)
+            self.tensorboard.add_multi_scalars(metrics_dict_reduced, iteration, main_tag='Eval')
         self.model.train()
 
     def create_evaluator(self, is_train_class, is_few_shot):
@@ -351,7 +351,7 @@ class Trainer():
         Create an evaluator based on the class type and whether it is few-shot training.
         """
         base_classes = is_train_class or not is_few_shot
-        data_handler = DataHandler(self.cfg, base_classes=base_classes, data_source='val', is_train=False)
+        data_handler = DataHandler(self.cfg, base_classes=base_classes, data_source='val', is_train=False, seed=self.cfg.RANDOM.SEED)
         return Evaluator(self.model, self.cfg, data_handler)
 
     def save_checkpoint(self, model_name, is_few_shot=False):

@@ -9,7 +9,7 @@ import os
 from .data.data_handler import DataHandler
 from .eval.eval import Evaluator
 from .modeling.detector.detectors import build_detection_model
-from .utils.checkpointer import DetectronCheckpointer
+from fcos.core.utils.checkpoint import DetectronCheckpointer
 from .modeling.detector import build_detection_model
 from .train.utils import make_lr_scheduler, make_optimizer
 
