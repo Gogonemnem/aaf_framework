@@ -82,7 +82,7 @@ class DataHandler():
         dataset_list = getattr(self.cfg.DATASETS, self.data_source.upper())
 
         datasets = {
-            'query': build_dataset(dataset_list, transforms, dataset_catalog, cfg=self.cfg, is_train=self.is_train, mode='finetune' if self.is_finetune else 'train'),
+            'query': build_dataset(dataset_list, transforms, dataset_catalog, cfg=self.cfg, is_train=self.is_train, mode='train'), #'finetune' if self.is_finetune else 'train'),
             'support': None
         }
 
@@ -170,8 +170,8 @@ class DataHandler():
         data_loaders = []
         for dataset in datasets: # will work only for cocodataset
             dataset.selected_classes = selected_classes
-            distributed_sampler = True if sampler_options['images_per_batch'] > sampler_options['images_per_gpu'] else False
-            sampler = self.get_sampler(dataset, selected_classes, is_fewshot, is_support, sampler_options, distributed_sampler)
+            distributed = sampler_options['images_per_batch'] > sampler_options['images_per_gpu']
+            sampler = self.get_sampler(dataset, selected_classes, is_fewshot, is_support, sampler_options, distributed)
             batch_sampler = make_batch_data_sampler(
                 dataset,
                 sampler,
@@ -182,6 +182,7 @@ class DataHandler():
                 is_fewshot=is_fewshot,
                 is_support=is_support
                 )
+
             data_loader = self.create_data_loader(dataset, batch_sampler)
             data_loaders.append(data_loader)
 
@@ -215,12 +216,8 @@ class DataHandler():
                 self.select_examples(dataset, selected_classes, n_query)
                 base_sampler = SupportSampler(dataset, self.selected_base_examples)
             else:
-                if self.is_finetune:
-                    self.select_examples(dataset, selected_classes, self.cfg.FEWSHOT.K_SHOT)
-                    base_sampler = SupportSampler(dataset, self.selected_base_examples)
-                else:
-                    n_query = self.cfg.FEWSHOT.N_QUERY_TRAIN if self.is_train else self.cfg.FEWSHOT.N_QUERY_TEST
-                    base_sampler = FilteringSampler(dataset, selected_classes, n_query, options['shuffle'], rng=self.rng_handler_fixed.torch_rng)
+                n_query = self.cfg.FEWSHOT.N_QUERY_TRAIN if self.is_train else self.cfg.FEWSHOT.N_QUERY_TEST
+                base_sampler = FilteringSampler(dataset, selected_classes, n_query, options['shuffle'], rng=self.rng_handler_fixed.torch_rng)
         else:
             base_sampler = FilteringSampler(dataset, selected_classes, len(dataset), options['shuffle'], rng=self.rng_handler_fixed.torch_rng)
 
