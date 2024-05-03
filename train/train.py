@@ -93,7 +93,7 @@ class Trainer():
 
         self.tensorboard = CustomLogger(log_dir=os.path.join(self.cfg.OUTPUT_DIR, 'logs'), notify=False)
 
-    def train(self): 
+    def train(self):
         """
         Main training loop. Starts base training and multiple finetunings
         with different number of shots after (if finetuning is enabled). 
@@ -184,7 +184,7 @@ class Trainer():
             loader = data_handler.get_dataloader()
         
         iter_epoch = len(loader) if not is_few_shot else len(loader) * self.episodes
-        self.max_iter = iter_epoch * self.episodes + self.finetuning_start_iter
+        self.max_iter = iter_epoch + self.finetuning_start_iter
         
         current_iter = 0
         steps_per_update = self.cfg.SOLVER.ACCUMULATION_STEPS
@@ -236,16 +236,16 @@ class Trainer():
                 if accumulation_count % steps_per_update == 0:
                     accumulation_count = 0  # Reset accumulation count after reaching the accumulation steps
                 
+                if not comm.is_main_process():
+                    continue
 
                 last_iteration_reached = current_iter == self.max_iter
-                
+
+                ## tmp: eval on 1 gpu, because of issues with gathering the predictions: so change data_handler sampler (and options) & eval
                 eval_interval_reached = current_iter % self.logging_eval_int == 0
                 should_eval = eval_interval_reached or last_iteration_reached
                 if should_eval:
                     self.eval(current_iter, is_few_shot=is_few_shot)
-                
-                if not comm.is_main_process():
-                    continue
 
                 batch_time = time.time() - end
                 end = time.time()
@@ -257,10 +257,9 @@ class Trainer():
                     self.log_metrics(losses, loss_dict, current_iter)
 
                 checkpoint_interval_reached = current_iter % self.checkpoint_period == 0
-                if checkpoint_interval_reached:                    
+                if checkpoint_interval_reached:
                     self.save_checkpoint(f"intermediate_{current_iter:07d}", is_few_shot)
 
-        
         if not comm.is_main_process():
             return
         
@@ -341,8 +340,7 @@ class Trainer():
             metrics_dict.update({f"Test {metric}": res_test.stats[id] if res_test != {} else 0 for id, metric in enumerate(metrics)})
 
         if comm.is_main_process():
-            metrics_dict_reduced = comm.reduce_dict(metrics_dict)
-            self.tensorboard.add_multi_scalars(metrics_dict_reduced, iteration, main_tag='Eval')
+            self.tensorboard.add_multi_scalars(metrics_dict, iteration, main_tag='Eval')
         self.model.train()
 
     def create_evaluator(self, is_train_class, is_few_shot):

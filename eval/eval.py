@@ -53,16 +53,30 @@ class Evaluator():
             self.data_handler.rng_handler_fixed.update_seeds(seed)
 
         loaders = loaders or self.data_handler.get_dataloader(seed=seed)
-        predictions = self.collect_model_predictions(loaders)
-        has_predictions = sum(len(pred) for pred in predictions) > 0
+        local_predictions = self.collect_model_predictions(loaders)
+
+        ### Predictions is a list of BoxList, so there is no way to gather them easily
+        ## if fixing, also change data_handler distributed sampler to gather indices
+        # all_predictions = [None] * comm.get_world_size()
+
+        # # Gather predictions from all processes
+        # comm.all_gather(all_predictions, local_predictions)
+
+        # if not comm.is_main_process():
+        #     return {}
+
+        # combined_predictions = [pred for local_pred in all_predictions for pred in local_pred]
+        combined_predictions = local_predictions
+
+        has_predictions = sum(len(pred) for pred in combined_predictions) > 0
 
         if not has_predictions:
             return {}
-        
+
         context_manager = HiddenPrints() if not verbose else nullcontext()
         with context_manager:
             dataset = loaders[0].dataset if isinstance(loaders, tuple) else loaders.dataset
-            self.save_coco_results(predictions, dataset)
+            self.save_coco_results(combined_predictions, dataset)
             results = self.perform_coco_evaluation(dataset, verbose, per_category)
             return results
 

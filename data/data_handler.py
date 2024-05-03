@@ -170,7 +170,7 @@ class DataHandler():
         data_loaders = []
         for dataset in datasets: # will work only for cocodataset
             dataset.selected_classes = selected_classes
-            distributed_sampler = DistributedSampler(dataset, shuffle=sampler_options['shuffle']) if sampler_options['images_per_batch'] > sampler_options['images_per_gpu'] else None
+            distributed_sampler = True if sampler_options['images_per_batch'] > sampler_options['images_per_gpu'] else False
             sampler = self.get_sampler(dataset, selected_classes, is_fewshot, is_support, sampler_options, distributed_sampler)
             batch_sampler = make_batch_data_sampler(
                 dataset,
@@ -191,7 +191,7 @@ class DataHandler():
     def configure_sampler_options(self, is_fewshot):
         num_gpus = comm.get_world_size()
         images_per_batch = self.cfg.SOLVER.IMS_PER_BATCH if self.is_train else self.cfg.TEST.IMS_PER_BATCH
-        images_per_gpu = math.ceil(images_per_batch / num_gpus)
+        images_per_gpu = math.ceil(images_per_batch / num_gpus) if self.is_train else images_per_batch # fix if multi gpu for eval
 
         return {
             'shuffle': True,
@@ -202,7 +202,7 @@ class DataHandler():
             'aspect_grouping': [1] if self.cfg.DATALOADER.ASPECT_RATIO_GROUPING else []
         }
 
-    def get_sampler(self, dataset, selected_classes, is_fewshot, is_support, options, distributed_sampler=None):
+    def get_sampler(self, dataset, selected_classes, is_fewshot, is_support, options, distributed_sampler=False):
         if is_fewshot:
             if is_support:
                 n_query = self.cfg.FEWSHOT.K_SHOT
@@ -224,7 +224,7 @@ class DataHandler():
         else:
             base_sampler = FilteringSampler(dataset, selected_classes, len(dataset), options['shuffle'], rng=self.rng_handler_fixed.torch_rng)
 
-        if distributed_sampler is not None and not is_support and self.is_train:
+        if distributed_sampler and self.is_train and not is_support : # tmp: eval is single gpu, check eval
             # Wrap the base sampler to respect the distributed indices
             base_sampler = samplers.DistributedIndexSampler(base_sampler)
         return base_sampler
