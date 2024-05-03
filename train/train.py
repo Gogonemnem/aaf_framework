@@ -354,10 +354,14 @@ class Trainer():
 
     def save_checkpoint(self, model_name, is_few_shot=False):
         if is_few_shot:
-            model_name = f"{model_name}_{self.cfg.FEWSHOT.K_SHOT}shot"
+            name = f"{model_name}_{self.cfg.FEWSHOT.K_SHOT}shot"
             if self.is_finetuning:
-                model_name = f"{model_name}_finetuning"
+                name = f"{model_name}_finetuning"
         else:
-            model_name = f"{model_name}_base"
+            name = f"{model_name}_base"
 
-        self.checkpointer.save(model_name, **self.arguments)
+        self.checkpointer.save(name, **self.arguments)
+        if model_name == 'final_model':
+            if is_few_shot:
+                self.checkpointer.tag_last_checkpoint(f"{model_name}_{self.cfg.FEWSHOT.K_SHOT}shot")
+
