@@ -162,7 +162,7 @@ class Trainer():
         self.optimizer = make_optimizer(self.cfg, self.model, self.cfg.FINETUNE.LR)
         self.scheduler.milestones = [self.max_iter + s for s in self.cfg.FINETUNE.STEPS]
 
-        # Update cfg
+        # Update cfg entry for k'th shot
         self.cfg.merge_from_list(['FEWSHOT.K_SHOT', k_shot])
 
     def run_training_loop(self, data_handler: DataHandler, is_few_shot=False):
@@ -356,12 +356,13 @@ class Trainer():
         if is_few_shot:
             name = f"{model_name}_{self.cfg.FEWSHOT.K_SHOT}shot"
             if self.is_finetuning:
-                name = f"{model_name}_finetuning"
+                name = f"{name}_finetuning"
         else:
             name = f"{model_name}_base"
 
         self.checkpointer.save(name, **self.arguments)
         if model_name == 'final_model':
             if is_few_shot:
-                self.checkpointer.tag_last_checkpoint(f"{model_name}_{self.cfg.FEWSHOT.K_SHOT}shot")
+                path = os.path.join(self.cfg.OUTPUT_DIR, f"{model_name}_1shot.pth") #hardcoded 1 shot for now
+                self.checkpointer.tag_last_checkpoint(path)
 
