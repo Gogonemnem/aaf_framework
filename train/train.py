@@ -43,9 +43,6 @@ class Trainer():
 
         self.finetuning_start_iter = 0
 
-        extra_checkpoint_data = self.checkpointer.load(cfg.MODEL.WEIGHT)
-        self.arguments.update(extra_checkpoint_data)
-
         self.evaluator_test = None
         self.evaluator_train = None
 
@@ -63,7 +60,32 @@ class Trainer():
         self.scheduler = make_lr_scheduler(self.cfg, self.optimizer)
         self.checkpointer = self.init_checkpointer()
 
-        self.arguments = {'iteration': 0}
+        # Load checkpoint data
+        extra_checkpoint_data = self.checkpointer.load(self.cfg.MODEL.WEIGHT)
+        self.arguments = extra_checkpoint_data
+
+        # Assuming the original batch size and accumulation steps are stored in checkpoint data
+        original_batch_size = extra_checkpoint_data.get('batch_size', self.cfg.SOLVER.IMS_PER_BATCH)
+        original_accum_steps = extra_checkpoint_data.get('accumulation_steps', 1)
+
+        new_batch_size = self.cfg.SOLVER.IMS_PER_BATCH
+        new_accum_steps = self.cfg.SOLVER.ACCUMULATION_STEPS
+
+        # Update arguments dictionary with new values
+        self.arguments.update({
+            'batch_size': new_batch_size,
+            'accumulation_steps': new_accum_steps
+        })
+
+        # If the checkpoint contains iteration information, adjust it based on the batch size and accumulation steps
+        if 'iteration' in extra_checkpoint_data:
+            original_examples_per_iter = original_batch_size / original_accum_steps
+            new_examples_per_iter = new_batch_size / new_accum_steps
+            # Recalculate start_iter based on the new configuration
+            self.arguments['iteration'] = int(extra_checkpoint_data['iteration'] * (original_examples_per_iter / new_examples_per_iter))
+        else:
+            self.arguments['iteration'] = 0
+
         self.is_finetuning = False
         # by default is_finetuning is false it will be set to true when it starts
         # if only finetuning then the number of base training is 0 but finetuning will
@@ -263,12 +285,14 @@ class Trainer():
 
         if not comm.is_main_process():
             return
-        
+
         total_training_time = time.time() - start_training_time
         total_time_str = str(datetime.timedelta(seconds=total_training_time))
         self.logger.info(
-            f"Total {'base training' if not self.is_finetuning else 'finetuning'} "
-            f"time: {total_time_str} ({total_training_time / (self.max_iter + 1):.4f} s / it)"
+            "Total %s time: %s (%.4f s / it)",
+            'base training' if not self.is_finetuning else 'finetuning',
+            total_time_str,
+            total_training_time / (self.max_iter + 1)
             )
         self.save_checkpoint("final_model", is_few_shot)
 
