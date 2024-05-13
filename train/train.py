@@ -64,23 +64,23 @@ class Trainer():
         extra_checkpoint_data = self.checkpointer.load(self.cfg.MODEL.WEIGHT)
         self.arguments = extra_checkpoint_data
 
-        # Assuming the original batch size and accumulation steps are stored in checkpoint data
-        original_batch_size = extra_checkpoint_data.get('batch_size', self.cfg.SOLVER.IMS_PER_BATCH)
-        original_accum_steps = extra_checkpoint_data.get('accumulation_steps', 1)
+        batch_size = self.cfg.SOLVER.IMS_PER_BATCH
+        accum_steps = self.cfg.SOLVER.ACCUMULATION_STEPS
 
-        new_batch_size = self.cfg.SOLVER.IMS_PER_BATCH
-        new_accum_steps = self.cfg.SOLVER.ACCUMULATION_STEPS
+        # Assuming the original batch size and accumulation steps are stored in checkpoint data
+        original_batch_size = extra_checkpoint_data.get('prior_batch_size', batch_size)
+        original_accum_steps = extra_checkpoint_data.get('prior_accumulation_steps', accum_steps)
 
         # Update arguments dictionary with new values
         self.arguments.update({
-            'batch_size': new_batch_size,
-            'accumulation_steps': new_accum_steps
+            'prior_batch_size': batch_size,
+            'prior_accumulation_steps': accum_steps
         })
 
         # If the checkpoint contains iteration information, adjust it based on the batch size and accumulation steps
         if 'iteration' in extra_checkpoint_data:
             original_examples_per_iter = original_batch_size / original_accum_steps
-            new_examples_per_iter = new_batch_size / new_accum_steps
+            new_examples_per_iter = batch_size / accum_steps
             # Recalculate start_iter based on the new configuration
             self.arguments['iteration'] = int(extra_checkpoint_data['iteration'] * (original_examples_per_iter / new_examples_per_iter))
         else:
