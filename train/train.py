@@ -11,6 +11,7 @@ from torch.nn.parallel import DistributedDataParallel
 
 from detectron2.utils import comm
 from fcos.core.utils.metric_logger import MetricLogger
+from fcos.core.utils.checkpoint import DetectronCheckpointer
 
 from ..data.data_handler import DataHandler
 from ..eval import Evaluator
@@ -34,7 +35,6 @@ class Trainer():
         self.setup_environment()
         if comm.is_main_process():
             self.setup_logging()
-            self.logger.info(f"Model:\n{self.model}")
 
         self.episodes = cfg.FEWSHOT.EPISODES
         self.logging_int = cfg.LOGGING.INTERVAL
@@ -65,24 +65,19 @@ class Trainer():
         self.arguments = extra_checkpoint_data
 
         batch_size = self.cfg.SOLVER.IMS_PER_BATCH
-        accum_steps = self.cfg.SOLVER.ACCUMULATION_STEPS
 
         # Assuming the original batch size and accumulation steps are stored in checkpoint data
         original_batch_size = extra_checkpoint_data.get('prior_batch_size', batch_size)
-        original_accum_steps = extra_checkpoint_data.get('prior_accumulation_steps', accum_steps)
 
         # Update arguments dictionary with new values
         self.arguments.update({
             'prior_batch_size': batch_size,
-            'prior_accumulation_steps': accum_steps
         })
 
         # If the checkpoint contains iteration information, adjust it based on the batch size and accumulation steps
         if 'iteration' in extra_checkpoint_data:
-            original_examples_per_iter = original_batch_size / original_accum_steps
-            new_examples_per_iter = batch_size / accum_steps
             # Recalculate start_iter based on the new configuration
-            self.arguments['iteration'] = int(extra_checkpoint_data['iteration'] * (original_examples_per_iter / new_examples_per_iter))
+            self.arguments['iteration'] = int(extra_checkpoint_data['iteration'] * (original_batch_size / batch_size))
         else:
             self.arguments['iteration'] = 0
 
@@ -112,6 +107,8 @@ class Trainer():
         file_handler = logging.FileHandler(os.path.join(self.cfg.OUTPUT_DIR, 'training.log'))
         file_handler.setFormatter(log_format)
         self.logger.addHandler(file_handler)
+
+        self.logger.info(f"Model:\n{self.model}")
 
         self.tensorboard = CustomLogger(log_dir=os.path.join(self.cfg.OUTPUT_DIR, 'logs'), notify=False)
 
