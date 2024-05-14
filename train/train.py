@@ -52,7 +52,8 @@ class Trainer():
         self.distributed = comm.get_world_size() > 1
         if self.distributed:
             self.model = DistributedDataParallel(
-                self.model, device_ids=[comm.get_local_rank()], broadcast_buffers=False
+                self.model, device_ids=[comm.get_local_rank()], broadcast_buffers=False,
+                find_unused_parameters=True
             )
 
     def setup_environment(self):
@@ -134,6 +135,7 @@ class Trainer():
                                    start_iter=self.arguments['iteration'])
         data_handler.task_sampler.display_classes()
         self.run_training_loop(data_handler, is_few_shot=True)
+        comm.synchronize()
 
         if not self.cfg.FINETUNING:
             return
@@ -155,6 +157,7 @@ class Trainer():
                 )
             data_handler.task_sampler.display_classes()
             self.run_training_loop(data_handler, is_few_shot=True)
+            comm.synchronize()
     
     def calculate_episodes(self, k_shot):
         """Calculate the number of training episodes based on configuration."""
@@ -177,6 +180,7 @@ class Trainer():
 
         # Freeze backbone layer
         model = self.model if not self.distributed else self.model.module
+
         model.backbone.body._freeze_backbone(self.cfg.FINETUNE.FREEZE_AT)
 
         # Update optimizer (lr)
@@ -249,7 +253,7 @@ class Trainer():
                 support_features = None
                 if is_few_shot:
                     model = self.model if not self.distributed else self.model.module
-                    suppport_features = model.compute_support_features(support_loader, self.device)
+                    support_features = model.compute_support_features(support_loader, self.device)
 
                 accumulate = (accumulation_count + 1) % steps_per_update != 0
 
