@@ -27,21 +27,21 @@ def eval(model, cfg, is_few_shot=False):
     ).load()
 
     if last_checkpoint:
-        print(f"Resumed from checkpoint")
+        print(f"Resumed from checkpoint: {last_checkpoint}")
     else:
         print("No valid checkpoint found, training from scratch.")
 
     model.eval()
     evaluator_train = create_evaluator(model, cfg, is_train_class=True, is_few_shot=is_few_shot)
 
-    res_train = evaluator_train.eval(verbose=True, per_category=True)['overall']
+    res_train = evaluator_train.eval_all(verbose=True)
     train_map = res_train.stats[1] if res_train != {} else 0
 
     if is_few_shot:
         evaluator_test = create_evaluator(model, cfg, is_train_class=False, is_few_shot=is_few_shot)
         
         # Perform evaluation and retrieve results for test classes
-        res_test = evaluator_test.eval(verbose=True, per_category=False)['overall']
+        res_test = evaluator_test.eval_all(verbose=True) # , per_category=False)['overall']
         test_map = res_test.stats[1] if res_test != {} else 0
 
         eval_res = {'Train mAP': train_map, 'Test mAP': test_map}
@@ -58,6 +58,7 @@ def create_evaluator(model, cfg, is_train_class, is_few_shot):
     """
     base_classes = is_train_class or not is_few_shot
     data_handler = DataHandler(cfg, base_classes=base_classes, data_source='val', is_train=False)
+    data_handler = DataHandler(cfg, base_classes=base_classes, data_source='val', eval_all=True, is_train=False)
     return Evaluator(model, cfg, data_handler)
 
 def setup(args):

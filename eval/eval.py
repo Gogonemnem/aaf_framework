@@ -232,7 +232,7 @@ class Evaluator():
             for setup in ['train', 'test']:
                 res_all_cls = {}
                 for q_s_loaders in loaders[setup]:
-                    _, res_cls = self.eval(verbose=False, loaders=q_s_loaders, seed=seed)
+                    res_cls = self.eval(verbose=True, loaders=q_s_loaders, seed=seed)
                     # this will overwrite some keys if the last batch is padded
                     # but only one eval is retained for each class
                     res_all_cls.update(res_cls)
