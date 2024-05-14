@@ -143,6 +143,10 @@ class Trainer():
         self.is_finetuning = True
         self.finetuning_start_iter = self.max_iter
         for k_shot in self.cfg.FINETUNE.SHOTS:
+            if self.final_checkpoint_exists(is_few_shot=True):
+                if comm.is_main_process():
+                    self.logger.info(f"Final checkpoint for {k_shot}-shot already exists. Skipping finetuning.")
+                continue
             # number of episodes specified in cfg finetune is for the
             # 1 shot case, number is adjusted to have the same number of
             # updates with each shots.
@@ -380,17 +384,24 @@ class Trainer():
         data_handler = DataHandler(self.cfg, base_classes=base_classes, data_source='val', is_train=False, seed=self.cfg.RANDOM.SEED)
         return Evaluator(self.model, self.cfg, data_handler)
 
+    def final_checkpoint_exists(self, is_few_shot=False):
+        name = self.generate_checkpoint_name('final_model', is_few_shot)
+        return os.path.exists(os.path.join(self.cfg.OUTPUT_DIR, f"{name}.pth"))
+    
     def save_checkpoint(self, model_name, is_few_shot=False):
+        name = self.generate_checkpoint_name(model_name, is_few_shot)
+
+        self.checkpointer.save(name, **self.arguments)
+        if model_name == 'final_model':
+            if is_few_shot:
+                path = os.path.join(self.cfg.OUTPUT_DIR, f"{model_name}_1shot.pth") # hardcoded 1 shot for now
+                self.checkpointer.tag_last_checkpoint(path)
+
+    def generate_checkpoint_name(self, model_name, is_few_shot=False):
         if is_few_shot:
             name = f"{model_name}_{self.cfg.FEWSHOT.K_SHOT}shot"
             if self.is_finetuning:
                 name = f"{name}_finetuning"
         else:
             name = f"{model_name}_base"
-
-        self.checkpointer.save(name, **self.arguments)
-        if model_name == 'final_model':
-            if is_few_shot:
-                path = os.path.join(self.cfg.OUTPUT_DIR, f"{model_name}_1shot.pth") #hardcoded 1 shot for now
-                self.checkpointer.tag_last_checkpoint(path)
-
+        return name
