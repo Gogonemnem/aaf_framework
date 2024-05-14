@@ -158,9 +158,11 @@ class Trainer():
     
     def calculate_episodes(self, k_shot):
         """Calculate the number of training episodes based on configuration."""
-        return self.cfg.FINETUNE.EPISODES // math.ceil(
-            self.cfg.FEWSHOT.N_WAYS_TRAIN / self.cfg.SOLVER.IMS_PER_BATCH * k_shot
-        )
+        # I have doubts regarding the result when batches_per_episode is larger than 1,
+        # Is the data handler consistent with the 'next' episode?
+        effective_batch_size = self.cfg.SOLVER.IMS_PER_BATCH * self.cfg.SOLVER.ACCUMULATION_STEPS
+        batches_per_episode = math.ceil(self.cfg.FEWSHOT.N_WAYS_TRAIN * k_shot / effective_batch_size)
+        return self.cfg.FINETUNE.EPISODES // batches_per_episode
     
     def prepare_finetuning(self, k_shot, episodes):
         self.episodes = episodes
@@ -174,7 +176,8 @@ class Trainer():
         self.evaluator_test = None
 
         # Freeze backbone layer
-        self.model.backbone.body._freeze_backbone(self.cfg.FINETUNE.FREEZE_AT)
+        model = self.model if not self.distributed else self.model.module
+        model.backbone.body._freeze_backbone(self.cfg.FINETUNE.FREEZE_AT)
 
         # Update optimizer (lr)
         del self.optimizer
@@ -198,7 +201,9 @@ class Trainer():
             end = time.time()
 
         if is_few_shot:
-            query_loader, _, _ = data_handler.get_dataloader()
+            query_loader, _, _ = data_handler.get_dataloader(
+                seed=self.cfg.RANDOM.SEED if self.is_finetuning else None
+            )
             iter_epoch = len(query_loader)
             self.max_iter = iter_epoch * self.episodes + self.finetuning_start_iter
         else:
@@ -206,7 +211,7 @@ class Trainer():
             iter_epoch = len(data_loader)
             self.max_iter = iter_epoch + self.finetuning_start_iter
         
-        current_iter = 0
+        current_iter = 0 if not self.is_finetuning else self.finetuning_start_iter
         steps_per_update = self.cfg.SOLVER.ACCUMULATION_STEPS
         accumulation_count = 0
         
@@ -243,10 +248,8 @@ class Trainer():
 
                 support_features = None
                 if is_few_shot:
-                    if self.distributed:
-                        support_features = self.model.module.compute_support_features(support_loader, self.device)
-                    else:
-                        support_features = self.model.compute_support_features(support_loader, self.device)
+                    model = self.model if not self.distributed else self.model.module
+                    suppport_features = model.compute_support_features(support_loader, self.device)
 
                 accumulate = (accumulation_count + 1) % steps_per_update != 0
 
