@@ -8,6 +8,17 @@ from fcos.core.modeling.backbone import fpn as fpn_module
 from fcos.core.modeling import registry
 from fcos.core.modeling.make_layers import conv_with_kaiming_uniform
 
+def _freeze_backbone(self, freeze_at):
+    # Always freeze the patch embeddings
+    for param in self.patch_embed.parameters():
+        param.requires_grad = False
+    
+    # Freeze the specified stages
+    for i in range(freeze_at):
+        stage = getattr(self, f'stages_{i}', None)
+        if stage is not None:
+            for param in stage.parameters():
+                param.requires_grad = False
 
 def build_pvtv2_fpn_backbone(cfg, variant):
     # Create the PVT model using TIMM
@@ -17,6 +28,10 @@ def build_pvtv2_fpn_backbone(cfg, variant):
         features_only=True,
         out_indices=(0, 1, 2, 3)
     )
+
+    # Dynamically add the _freeze_backbone method to the body object to conform to fcos package
+    setattr(body, '_freeze_backbone', _freeze_backbone.__get__(body, type(body)))
+
 
     # Assuming PVTv2 outputs feature maps at indices 0, 1, 2, 3
     in_channels_list = [f['num_chs'] for f in body.feature_info]
