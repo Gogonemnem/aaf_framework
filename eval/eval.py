@@ -218,35 +218,34 @@ class Evaluator():
         
         """
         assert self.data_handler.eval_all == True, 'Use eval_all with eval_all=True in DataHandler'
-        accumulated_res_test = {}
-        accumulated_res_train = {}
+
         all_res = {
-            'train': accumulated_res_test,
-            'test': accumulated_res_train
+            'train': {},
+            'test': {}
         }
 
         for eval_ep in range(n_episode):
             if seed is not None:
                 self.data_handler.rng_handler.update_seeds(seed)
+
             loaders = self.data_handler.get_dataloader(seed=seed)
-            for setup in ['train', 'test']:
-                res_all_cls = {}
-                for q_s_loaders in loaders[setup]:
-                    res_cls = self.eval(verbose=True, loaders=q_s_loaders, seed=seed)
+
+            for res_type, res_results in all_res.items():
+                for q_s_loaders in loaders[res_type]:
+                    res = self.eval(verbose=True, loaders=q_s_loaders, seed=seed)
                     # this will overwrite some keys if the last batch is padded
                     # but only one eval is retained for each class
-                    res_all_cls.update(res_cls)
+                    for cls, cls_results in res.items():
+                        if cls not in res_results:
+                            res_results[cls] = []
+                        res_results[cls].append(cls_results.stats)
 
-                for k, v in res_all_cls.items():
-                    if not k in all_res[setup]:
-                        all_res[setup][k] = []
-                    all_res[setup][k].append(v.stats)
+            for res_type, res_results in all_res.items():
+                for cls, cls_results in res_results.items():
+                    res_results[cls] = np.vstack(cls_results).mean(axis=0)
 
-        for setup in ['train', 'test']:
-            for k, v in all_res[setup].items():
-                all_res[setup][k] = np.vstack(all_res[setup][k]).mean(axis=0)
-
-        return self.prettify_results(all_res, verbose=verbose, is_few_shot=True)
+        return all_res
+        # return self.prettify_results(all_res, verbose=verbose, is_few_shot=True)
 
     def eval_no_fs(self, seed=None, verbose=False):
         """
