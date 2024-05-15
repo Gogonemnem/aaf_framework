@@ -25,7 +25,7 @@ class AAFModule(nn.Module):
         aaf_cfg.merge_from_file(cfg.FEWSHOT.AAF.CFG)
         self.aaf_cfg = aaf_cfg
 
-        self.alignment = registry.ALIGNMENT_MODULE.get(aaf_cfg.ALIGNMENT.MODE)(cfg, aaf_cfg.ALIGN_FIRST)
+        self.alignment = registry.ALIGNMENT_MODULE.get(aaf_cfg.ALIGNMENT.MODE)(cfg, aaf_cfg.ALIGN_FIRST, aaf_cfg)
         self.attention = registry.ATTENTION_MODULE.get(aaf_cfg.ATTENTION.MODE)(cfg, aaf_cfg.ALIGN_FIRST)
         self.fusion = registry.FUSION_MODULE.get(aaf_cfg.FUSION.MODE)(cfg)
 
@@ -70,17 +70,19 @@ class AAFModule(nn.Module):
             for target in support_targets
         ])))
 
-        k = self.cfg.FEWSHOT.K_SHOT
+        # k_shots = self.cfg.FEWSHOT.K_SHOT
         n_ways = len(labels)
         query_features_dict = {}
-        # print(labels)
         for feature in features['output_features']:
             shape = feature.shape
-            feature = feature.view(shape[0], n_ways, *shape[-3:])
+            # , k_shots, n_ways, *shape[-3:]
+            feature = feature.reshape(shape[0], n_ways, *shape[-3:])
             for id_class, c in enumerate(labels):
                 if c not in query_features_dict:
                     query_features_dict[c] = []
-                query_features_dict[c].append(feature[:,id_class])
+                class_features = feature[:,id_class]
+                # avg_class_features = class_features.mean(1)
+                query_features_dict[c].append(class_features)
 
         return query_features_dict
 

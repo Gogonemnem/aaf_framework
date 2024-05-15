@@ -36,17 +36,16 @@ class Trainer():
         if comm.is_main_process():
             self.setup_logging()
 
-        self.episodes = cfg.FEWSHOT.EPISODES
+        
         self.logging_int = cfg.LOGGING.INTERVAL
         self.logging_eval_int = cfg.LOGGING.EVAL_INTERVAL
         self.checkpoint_period = cfg.SOLVER.CHECKPOINT_PERIOD
 
-        self.finetuning_start_iter = 0
+    def setup_model(self, k_shot=None):
+        if k_shot is not None:
+            # Update cfg entry for k'th shot
+            self.cfg.merge_from_list(['FEWSHOT.K_SHOT', k_shot])
 
-        self.evaluator_test = None
-        self.evaluator_train = None
-
-    def setup_model(self):
         self.model = build_detection_model(self.cfg).to(self.device)
 
         self.distributed = comm.get_world_size() > 1
@@ -56,9 +55,19 @@ class Trainer():
                 find_unused_parameters=True
             )
 
-    def setup_environment(self):
-        self.optimizer = make_optimizer(self.cfg, self.model)
+    def setup_environment(self, is_finetuning=False, k_shot=1):
+        self.episodes = self.calculate_episodes(k_shot)
+
+        lr = None
+        if is_finetuning:
+            lr = self.cfg.FINETUNE.LR
+        self.optimizer = make_optimizer(self.cfg, self.model, lr)
+
+
         self.scheduler = make_lr_scheduler(self.cfg, self.optimizer)
+        if is_finetuning:
+            self.scheduler.milestones = [self.max_iter + s for s in self.cfg.FINETUNE.STEPS]
+
         self.checkpointer = self.init_checkpointer()
 
         # Load checkpoint data
@@ -82,10 +91,19 @@ class Trainer():
         else:
             self.arguments['iteration'] = 0
 
-        self.is_finetuning = False
+        self.is_finetuning = is_finetuning
+        self.finetuning_start_iter = 0 if not is_finetuning else self.base_max_iter
         # by default is_finetuning is false it will be set to true when it starts
         # if only finetuning then the number of base training is 0 but finetuning will
-        # be set later anyway. 
+        # be set later anyway.
+
+        self.evaluator_test = None
+        self.evaluator_train = None
+
+        if is_finetuning:
+             # Freeze backbone layer
+            model = self.model if not self.distributed else self.model.module
+            model.backbone.body._freeze_backbone(self.cfg.FINETUNE.FREEZE_AT)
 
     def init_checkpointer(self):
         """Initialize the model checkpointer."""
@@ -140,18 +158,18 @@ class Trainer():
         if not self.cfg.FINETUNING:
             return
 
-        self.is_finetuning = True
-        self.finetuning_start_iter = self.max_iter
         for k_shot in self.cfg.FINETUNE.SHOTS:
+            # number of episodes specified in cfg finetune is for the
+            # 1 shot case, number is adjusted to have the same number of
+            # updates with each shots.
+            self.setup_model(k_shot=k_shot)
+            self.setup_environment(is_finetuning=True, k_shot=k_shot)
+
             if self.final_checkpoint_exists(is_few_shot=True):
                 if comm.is_main_process():
                     self.logger.info(f"Final checkpoint for {k_shot}-shot already exists. Skipping finetuning.")
                 continue
-            # number of episodes specified in cfg finetune is for the
-            # 1 shot case, number is adjusted to have the same number of
-            # updates with each shots.
-            episodes = self.calculate_episodes(k_shot)
-            self.prepare_finetuning(k_shot, episodes)
+
             data_handler = DataHandler(
                 self.cfg,
                 base_classes=False,
@@ -170,30 +188,6 @@ class Trainer():
         effective_batch_size = self.cfg.SOLVER.IMS_PER_BATCH * self.cfg.SOLVER.ACCUMULATION_STEPS
         batches_per_episode = math.ceil(self.cfg.FEWSHOT.N_WAYS_TRAIN * k_shot / effective_batch_size)
         return self.cfg.FINETUNE.EPISODES // batches_per_episode
-    
-    def prepare_finetuning(self, k_shot, episodes):
-        self.episodes = episodes
-        self.logging_int = self.cfg.LOGGING.INTERVAL // 1
-        self.logging_eval_int = self.cfg.LOGGING.EVAL_INTERVAL // 3
-        self.checkpoint_period = self.cfg.SOLVER.CHECKPOINT_PERIOD // 1
-
-        self.checkpointer.load(os.path.join(self.cfg.OUTPUT_DIR, 'model_final.pth'))
-
-        self.evaluator_train = None
-        self.evaluator_test = None
-
-        # Freeze backbone layer
-        model = self.model if not self.distributed else self.model.module
-
-        model.backbone.body._freeze_backbone(self.cfg.FINETUNE.FREEZE_AT)
-
-        # Update optimizer (lr)
-        del self.optimizer
-        self.optimizer = make_optimizer(self.cfg, self.model, self.cfg.FINETUNE.LR)
-        self.scheduler.milestones = [self.max_iter + s for s in self.cfg.FINETUNE.STEPS]
-
-        # Update cfg entry for k'th shot
-        self.cfg.merge_from_list(['FEWSHOT.K_SHOT', k_shot])
 
     def run_training_loop(self, data_handler: DataHandler, is_few_shot=False):
         """
@@ -214,6 +208,8 @@ class Trainer():
             )
             iter_epoch = len(query_loader)
             self.max_iter = iter_epoch * self.episodes + self.finetuning_start_iter
+            if not self.is_finetuning:
+                self.base_max_iter = iter_epoch * self.episodes
         else:
             data_loader = data_handler.get_dataloader()
             iter_epoch = len(data_loader)
@@ -290,7 +286,7 @@ class Trainer():
                 checkpoint_interval_reached = current_iter % self.checkpoint_period == 0
                 if checkpoint_interval_reached:
                     self.save_checkpoint(f"intermediate_{current_iter:07d}", is_few_shot)
-
+            self.logger.info(targets)
         if not comm.is_main_process():
             return
 

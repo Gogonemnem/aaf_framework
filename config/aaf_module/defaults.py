@@ -10,6 +10,8 @@ _C.OUT_CH = 256
 _C.ALIGNMENT = CN()
 # Available options depend on the content modeling/rpn/fsfcos/aaf/alignment.py
 _C.ALIGNMENT.MODE = 'IDENTITY'
+_C.ALIGNMENT.NUM_HEADS = 1 
+_C.ALIGNMENT.AVERAGE_SUPPORT_FIRST = False
 
 
 _C.ATTENTION = CN()

@@ -28,6 +28,7 @@ class FSFCOSHead(torch.nn.Module):
         self.norm_reg_targets = cfg.MODEL.FCOS.NORM_REG_TARGETS
         self.centerness_on_reg = cfg.MODEL.FCOS.CENTERNESS_ON_REG
         self.use_dcn_in_tower = cfg.MODEL.FCOS.USE_DCN_IN_TOWER
+        self.k_shot = cfg.FEWSHOT.K_SHOT
 
         self.aaf_module = AAFModule(cfg)
         aaf_channels = self.aaf_module.aaf_cfg.OUT_CH
@@ -120,20 +121,23 @@ class FSFCOSHead(torch.nn.Module):
                 box_tower = self.bbox_tower(feature)
 
                 logits[current_class].append(self.cls_logits(cls_tower))
+
                 if self.centerness_on_reg:
-                    centerness[current_class].append(self.centerness(box_tower))
+                    center_value = box_tower
                 else:
-                    centerness[current_class].append(self.centerness(cls_tower))
+                    center_value = cls_tower
+
+                centerness[current_class].append(self.centerness(center_value))
 
                 bbox_pred = self.scales[l](self.bbox_pred(box_tower))
                 if self.norm_reg_targets:
                     bbox_pred = F.relu(bbox_pred)
-                    if self.training:
-                        bbox_reg[current_class].append(bbox_pred)
-                    else:
-                        bbox_reg[current_class].append(bbox_pred * self.fpn_strides[l])
+
+                    if not self.training:
+                        bbox_pred = bbox_pred * self.fpn_strides[l]
                 else:
-                    bbox_reg[current_class].append(torch.exp(bbox_pred))
+                    bbox_pred = torch.exp(bbox_pred)
+                bbox_reg[current_class].append(bbox_pred)
 
         return logits, bbox_reg, centerness
 
