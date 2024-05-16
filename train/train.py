@@ -56,7 +56,7 @@ class Trainer():
             )
 
     def setup_environment(self, is_finetuning=False, k_shot=1):
-        self.episodes = self.calculate_episodes(k_shot)
+        self.episodes = self.calculate_episodes(is_finetuning, k_shot)
 
         lr = None
         if is_finetuning:
@@ -137,9 +137,10 @@ class Trainer():
         with different number of shots after (if finetuning is enabled). 
         """
         if self.cfg.FEWSHOT.ENABLED:
-            self.train_few_shot()
+            losses = self.train_few_shot()
         else:
-            self.train_base()
+            losses = self.train_base()
+        return losses
 
     def train_base(self):
         """Perform base training."""
@@ -152,11 +153,11 @@ class Trainer():
         data_handler = DataHandler(self.cfg, base_classes=True, is_train=True,
                                    start_iter=self.arguments['iteration'])
         data_handler.task_sampler.display_classes()
-        self.run_training_loop(data_handler, is_few_shot=True)
+        losses = self.run_training_loop(data_handler, is_few_shot=True)
         comm.synchronize()
 
         if not self.cfg.FINETUNING:
-            return
+            return losses
 
         for k_shot in self.cfg.FINETUNE.SHOTS:
             # number of episodes specified in cfg finetune is for the
@@ -178,13 +179,15 @@ class Trainer():
                 is_finetune=True
                 )
             data_handler.task_sampler.display_classes()
-            self.run_training_loop(data_handler, is_few_shot=True)
+            losses = self.run_training_loop(data_handler, is_few_shot=True)
             comm.synchronize()
+        return losses
     
-    def calculate_episodes(self, k_shot):
+    def calculate_episodes(self, is_finetuning, k_shot):
         """Calculate the number of training episodes based on configuration."""
-        # I have doubts regarding the result when batches_per_episode is larger than 1,
-        # Is the data handler consistent with the 'next' episode?
+        if not is_finetuning:
+            return self.cfg.FEWSHOT.EPISODES
+        
         effective_batch_size = self.cfg.SOLVER.IMS_PER_BATCH * self.cfg.SOLVER.ACCUMULATION_STEPS
         batches_per_episode = math.ceil(self.cfg.FEWSHOT.N_WAYS_TRAIN * k_shot / effective_batch_size)
         return self.cfg.FINETUNE.EPISODES // batches_per_episode
@@ -286,9 +289,9 @@ class Trainer():
                 checkpoint_interval_reached = current_iter % self.checkpoint_period == 0
                 if checkpoint_interval_reached:
                     self.save_checkpoint(f"intermediate_{current_iter:07d}", is_few_shot)
-            self.logger.info(targets)
+
         if not comm.is_main_process():
-            return
+            return losses
 
         total_training_time = time.time() - start_training_time
         total_time_str = str(datetime.timedelta(seconds=total_training_time))
@@ -299,6 +302,7 @@ class Trainer():
             total_training_time / (self.max_iter + 1)
             )
         self.save_checkpoint("final_model", is_few_shot)
+        return losses
 
     def train_step(self, images, targets, classes=None, support=None, accumulate=False):
         """A single training step."""
@@ -344,7 +348,7 @@ class Trainer():
         if sys.gettrace() is None:
             self.tensorboard.add_multi_scalars(self.meters.meters, iteration)
 
-    def eval(self, iteration, is_few_shot=False):
+    def eval(self, iteration=None, is_few_shot=False):
         """
         Perform evaluation, handling both few-shot and regular scenarios based on the is_few_shot flag.
         """
@@ -368,9 +372,10 @@ class Trainer():
             res_test = self.evaluator_test.eval(verbose=False, per_category=False, seed=self.cfg.RANDOM.SEED).get('overall', {})
             metrics_dict.update({f"Test {metric}": res_test.stats[id] if res_test != {} else 0 for id, metric in enumerate(metrics)})
 
-        if comm.is_main_process():
+        if comm.is_main_process() and iteration is not None:
             self.tensorboard.add_multi_scalars(metrics_dict, iteration, main_tag='Eval')
         self.model.train()
+        return 
 
     def create_evaluator(self, is_train_class, is_few_shot):
         """
