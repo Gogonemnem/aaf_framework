@@ -37,6 +37,7 @@ def get_cfg_with_hyperparams(args, lr, accum_steps, weight_decay, episodes):
     cfg.FEWSHOT.EPISODES = episodes
     cfg.SOLVER.CHECKPOINT_PERIOD = 1000000000
     cfg.LOGGING.EVAL_INTERVAL = 1000000000
+    cfg.FINETUNING = False
 
     cfg.OUTPUT_DIR = cfg.OUTPUT_DIR + f"_lr={lr}_accum={accum_steps}_wd={weight_decay}"
     cfg.freeze()
@@ -45,7 +46,7 @@ def get_cfg_with_hyperparams(args, lr, accum_steps, weight_decay, episodes):
 def objective_first_stage(args, trial):
     # Define hyperparameters to tune
     lr = trial.suggest_loguniform('lr', 1e-5, 1e-3)
-    accumulation_steps = trial.suggest_int('accumulation_steps', 0, 4)
+    accumulation_steps = 2 ** trial.suggest_int('accumulation_steps', 0, 4)
     weight_decay = trial.suggest_loguniform('weight_decay', 1e-6, 1e-2)
 
     # Get modified config
