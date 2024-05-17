@@ -30,7 +30,7 @@ def get_cfg_with_hyperparams(args, lr, accum_steps, weight_decay, episodes):
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
     default_setup(cfg, args)
-    cfg.SOLVER.BASE_LR = lr
+    cfg.SOLVER.BASE_LR = lr * accum_steps  # Adjust the learning rate based on accumulation steps
     cfg.SOLVER.IMS_PER_BATCH = 4
     cfg.SOLVER.WEIGHT_DECAY = weight_decay
     cfg.SOLVER.ACCUMULATION_STEPS = accum_steps
@@ -58,6 +58,10 @@ def objective_first_stage(args, trial):
 
     # Train for fewer epochs
     loss = trainer.train()
+    
+    # Store the parameters in the trial for the second stage
+    trial.set_user_attr('params', {'lr': lr, 'accumulation_steps': accumulation_steps, 'weight_decay': weight_decay})
+
 
     return loss
 
