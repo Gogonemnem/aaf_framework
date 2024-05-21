@@ -35,11 +35,12 @@ def build_pvtv2_fpn_backbone(cfg, variant):
 
     # Assuming PVTv2 outputs feature maps at indices 0, 1, 2, 3
     in_channels_list = [f['num_chs'] for f in body.feature_info]
+    in_channels_list[0] = 0
     fpn = fpn_module.FPN(
         in_channels_list=in_channels_list,
         out_channels=cfg.MODEL.RESNETS.BACKBONE_OUT_CHANNELS,
         conv_block=conv_with_kaiming_uniform(cfg.MODEL.FPN.USE_GN, cfg.MODEL.FPN.USE_RELU),
-        top_blocks=fpn_module.LastLevelMaxPool()
+        top_blocks=fpn_module.LastLevelP6P7(in_channels_list[-1], cfg.MODEL.RESNETS.BACKBONE_OUT_CHANNELS)
     )
 
     model = nn.Sequential(OrderedDict([
