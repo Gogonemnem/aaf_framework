@@ -221,6 +221,7 @@ class Trainer():
         current_iter = 0 if not self.is_finetuning else self.finetuning_start_iter
         steps_per_update = self.cfg.SOLVER.ACCUMULATION_STEPS
         accumulation_count = 0
+        losses = None
         
         for epoch in range(self.episodes if is_few_shot else 1):
             if is_few_shot:
