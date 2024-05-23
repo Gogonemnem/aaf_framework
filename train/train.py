@@ -146,14 +146,17 @@ class Trainer():
         """Perform base training."""
         data_handler = DataHandler(self.cfg, base_classes=True, is_train=True,
                                    start_iter=self.arguments['iteration'])
-        self.run_training_loop(data_handler)
+        losses = self.run_training_loop(data_handler)
+        return losses
 
     def train_few_shot(self):
         """Perform few-shot training and fine-tuning as configured."""
+        
         data_handler = DataHandler(self.cfg, base_classes=True, is_train=True,
-                                   start_iter=self.arguments['iteration'])
+                                start_iter=self.arguments['iteration'])
         data_handler.task_sampler.display_classes()
         losses = self.run_training_loop(data_handler, is_few_shot=True)
+        
         comm.synchronize()
 
         if not self.cfg.FINETUNING:
@@ -302,7 +305,10 @@ class Trainer():
             total_time_str,
             total_training_time / (self.max_iter + 1)
             )
-        self.save_checkpoint("final_model", is_few_shot)
+        if self.final_checkpoint_exists(is_few_shot=True):
+            self.logger.info(f"Final checkpoint for already exists. Not overwriting.")
+        else:
+            self.save_checkpoint("final_model", is_few_shot)
         return losses
 
     def train_step(self, images, targets, classes=None, support=None, accumulate=False):
