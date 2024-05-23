@@ -367,7 +367,7 @@ class Trainer():
         if self.evaluator_train is None:
             self.evaluator_train = self.create_evaluator(is_train_class=True, is_few_shot=is_few_shot)
 
-        res_train = self.evaluator_train.eval(verbose=False, per_category=False, seed=self.cfg.RANDOM.SEED).get('overall', {})
+        res_train = self.evaluator_train.eval(verbose=False, per_category=False).get('overall', {})
         metrics_dict = {f"Train {metric}": res_train.stats[id] if res_train != {} else 0 for id, metric in enumerate(metrics)}
 
         if is_few_shot:
@@ -376,7 +376,7 @@ class Trainer():
                 self.evaluator_test = self.create_evaluator(is_train_class=False, is_few_shot=is_few_shot)
 
             # Perform evaluation and retrieve results for test classes
-            res_test = self.evaluator_test.eval(verbose=False, per_category=False, seed=self.cfg.RANDOM.SEED).get('overall', {})
+            res_test = self.evaluator_test.eval(verbose=False, per_category=False).get('overall', {})
             metrics_dict.update({f"Test {metric}": res_test.stats[id] if res_test != {} else 0 for id, metric in enumerate(metrics)})
 
         if comm.is_main_process() and iteration is not None:
