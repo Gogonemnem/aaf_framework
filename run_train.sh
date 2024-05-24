@@ -1,25 +1,43 @@
 #!/bin/bash
 cd  ..
 
+# Function to get the IDs of GPUs with the lowest memory usage
+select_gpus() {
+  local num_gpus=$1
+  nvidia-smi --query-gpu=index,memory.free --format=csv,noheader,nounits \
+    | sort -k2 -nr \
+    | head -n $num_gpus \
+    | awk '{print $1}' \
+    | paste -sd '' \
+    | sed 's/,$//'
+} 
 # Parse command-line arguments
-while getopts ":c:" opt; do
+while getopts ":c:g:" opt; do
  case ${opt} in
     c )
-      CONFIG_FILE=$OPTARG
+      CONFIG_NAME=$OPTARG
+      ;;
+    g )
+      NUM_GPUS=$OPTARG
       ;;
     \? )
-      echo "Invalid option: $OPTARG" 1>&2
+      echo "Invalid option: -$OPTARG" 1>&2
       exit 1
       ;;
     : )
-      echo "Invalid option: $OPTARG requires an argument" 1>&2
+      echo "Option -$OPTARG requires an argument." 1>&2
       exit 1
       ;;
  esac
 done
 
-CONFIG_FILE="aaf_framework/config_files/fcos_PVT_V2_B2_LI_FPN_DIOR.yaml"
+# Default configuration name if not provided
+CONFIG_NAME=${CONFIG_NAME:-"fcos_R_50_FPN_HYBRID_DIOR"}
+
+# Construct the full path to the configuration file
+CONFIG_FILE="aaf_framework/config_files/${CONFIG_NAME}.yaml"
 shift $((OPTIND -1))
+
 
 # Check if the configuration file exists
 if [ ! -f "$CONFIG_FILE" ]; then
@@ -28,19 +46,23 @@ if [ ! -f "$CONFIG_FILE" ]; then
 fi
 
 # Log directory path, constructed based on the configuration file name
-LOG_DIR="logs/$(basename "$CONFIG_FILE" .yaml)"
+LOG_DIR="logs/$CONFIG_NAME"
 
 # Check if the log directory exists, create it if not
 if [ ! -d "$LOG_DIR" ]; then
     mkdir -p "$LOG_DIR"
 fi
 
-# Determine the number of GPUs available
-NUM_GPUS=$(nvidia-smi -L | wc -l)
+# Default number of GPUs if not provided
+NUM_GPUS=${NUM_GPUS:-1}
 
-# Set CUDA_VISIBLE_DEVICES to use all available GPUs
-CUDA_VISIBLE_DEVICES=$(seq -s, 0 $(($NUM_GPUS-1)))
+# Select the GPUs with the lowest memory usage
+CUDA_VISIBLE_DEVICES=$(select_gpus $NUM_GPUS)
 
-# Execute the command with the detected number of GPUs and configuration file
-~/.conda/envs/fct/bin/python -m aaf_framework.main --num-gpus $NUM_GPUS --dist-url auto \
-  --config-file "$CONFIG_FILE" SOLVER.IMS_PER_BATCH $((NUM_GPUS*2)) SOLVER.ACCUMULATION_STEPS 4
+# Set the CUDA_VISIBLE_DEVICES environment variable
+export CUDA_VISIBLE_DEVICES
+
+echo "Selected GPUs: $CUDA_VISIBLE_DEVICES"
+# Execute the command with the selected GPUs and configuration file
+~/.conda/envs/aaf/bin/python -m aaf_framework.main --num-gpus $NUM_GPUS --dist-url auto \
+  --config-file "$CONFIG_FILE" SOLVER.IMS_PER_BATCH 8 TEST.IMS_PER_BATCH 8 SOLVER.ACCUMULATION_STEPS 1
