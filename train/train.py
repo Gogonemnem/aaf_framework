@@ -168,6 +168,9 @@ class Trainer():
             # updates with each shots.
             self.setup_model(k_shot=k_shot)
             self.setup_environment(is_finetuning=True, k_shot=k_shot)
+            if comm.is_main_process():
+                self.setup_logging()
+
 
             if self.final_checkpoint_exists(is_few_shot=True):
                 if comm.is_main_process():
