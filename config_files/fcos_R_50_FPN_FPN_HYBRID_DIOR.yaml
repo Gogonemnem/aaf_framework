@@ -1,10 +1,10 @@
 MODEL:
   META_ARCHITECTURE: "FSGeneralizedRCNN"
-  WEIGHT: ""
+  WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
   RPN_ONLY: True
   FCOS_ON: True
   BACKBONE:
-    CONV_BODY: "PVT-V2-B2-LI-FPN"
+    CONV_BODY: "R-50-FPN-HYBRID"
     FREEZE_CONV_BODY_AT: 2
   RESNETS:
     BACKBONE_OUT_CHANNELS: 256
@@ -15,7 +15,7 @@ MODEL:
     LOSS_ALPHA: 0.25
     INFERENCE_TH: 0.1
     NUM_CLASSES: 17
-    FPN_STRIDES: [4, 8, 16, 32, 64]
+    FPN_STRIDES: [4, 8, 16, 32, 64, 128]
 DATASETS:
   TRAIN: ("dior_train",)
   TEST: ("dior_test",)
@@ -36,9 +36,9 @@ SOLVER:
   WEIGHT_DECAY: 0.0001
   STEPS: (150000, 2000000)
   MAX_ITER: 90000
-  IMS_PER_BATCH: 1
+  IMS_PER_BATCH: 4
   WARMUP_METHOD: "constant"
-  CHECKPOINT_PERIOD: 1260
+  CHECKPOINT_PERIOD: 2500
   CONTINUE_TRAINING: True # False
 LOSSES: 
   OBJECT_SIZES_OF_INTEREST: [
@@ -46,10 +46,11 @@ LOSSES:
     [32, 64],
     [64, 128],
     [128, 256],
-    [256, 10000000],
+    [256, 512],
+    [512, 10000000],
 ]
 TEST:
-  IMS_PER_BATCH: 1
+  IMS_PER_BATCH: 8
   BBOX_AUG:
     ENABLED: False
     H_FLIP: True
@@ -74,12 +75,12 @@ FEWSHOT:
   SAME_SUPPORT_IN_BATCH: True # do not put to False while FineTuning
   AAF:
     CFG: 'aaf_framework/config_files/aaf_module/xqsa.yaml'
-OUTPUT_DIR: 'aaf_framework/output/Experiments_FSFCOS/DIOR/PVT_V2_B2_LI_FPN_XQSA8'
+OUTPUT_DIR: 'aaf_framework/output/Experiments_FSFCOS/DIOR/ResNet50_FPN_HYBRID_XQSA8'
 RANDOM:
   DISABLED: False
 LOGGING:
-  INTERVAL: 63
-  EVAL_INTERVAL: 630
+  INTERVAL: 125
+  EVAL_INTERVAL: 1250
 FINETUNING: True
 FINETUNE:
   EPISODES: 1000
@@ -89,5 +90,4 @@ FINETUNE:
   SHOTS: [1,10]
   MIXED: True
   STEPS: (1000,)
-PRETRAINED_BACKBONE: True
 VERSION: 2

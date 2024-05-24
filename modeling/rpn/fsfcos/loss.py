@@ -47,6 +47,7 @@ class FCOSLossComputation(object):
         self.center_sampling_radius = cfg.MODEL.FCOS.CENTER_SAMPLING_RADIUS
         self.iou_loss_type = cfg.MODEL.FCOS.IOU_LOSS_TYPE
         self.norm_reg_targets = cfg.MODEL.FCOS.NORM_REG_TARGETS
+        self.object_sizes_of_interest = cfg.LOSSES.OBJECT_SIZES_OF_INTEREST
 
         # we make use of IOU Loss for bounding boxes regression,
         # but we found that L1 in log scale can yield a similar performance
@@ -101,17 +102,10 @@ class FCOSLossComputation(object):
         return inside_gt_bbox_mask
 
     def prepare_targets(self, points, targets):
-        object_sizes_of_interest = [
-            [-1, 64],
-            [64, 128],
-            [128, 256],
-            [256, 512],
-            [512, INF],
-        ]
         expanded_object_sizes_of_interest = []
         for l, points_per_level in enumerate(points):
             object_sizes_of_interest_per_level = \
-                points_per_level.new_tensor(object_sizes_of_interest[l])
+                points_per_level.new_tensor(self.object_sizes_of_interest[l])
             expanded_object_sizes_of_interest.append(
                 object_sizes_of_interest_per_level[None].expand(len(points_per_level), -1)
             )
