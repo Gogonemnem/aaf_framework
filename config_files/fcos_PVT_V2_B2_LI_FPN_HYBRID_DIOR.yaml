@@ -1,10 +1,10 @@
 MODEL:
   META_ARCHITECTURE: "FSGeneralizedRCNN"
-  WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
+  WEIGHT: ""
   RPN_ONLY: True
   FCOS_ON: True
   BACKBONE:
-    CONV_BODY: "R-50-FPN-RETINANET"
+    CONV_BODY: "PVT-V2-B2-LI-FPN"
     FREEZE_CONV_BODY_AT: 2
   RESNETS:
     BACKBONE_OUT_CHANNELS: 256
@@ -35,12 +35,12 @@ SOLVER:
   WEIGHT_DECAY: 0.0001
   STEPS: (150000, 2000000)
   MAX_ITER: 90000
-  IMS_PER_BATCH: 4
+  IMS_PER_BATCH: 1
   WARMUP_METHOD: "constant"
-  CHECKPOINT_PERIOD: 2000
+  CHECKPOINT_PERIOD: 3000
   CONTINUE_TRAINING: True # False
 TEST:
-  IMS_PER_BATCH: 8
+  IMS_PER_BATCH: 1
   BBOX_AUG:
     ENABLED: False
     H_FLIP: True
@@ -64,25 +64,21 @@ FEWSHOT:
     CROP_MARGIN: 0.5
   SAME_SUPPORT_IN_BATCH: True # do not put to False while FineTuning
   AAF:
-    # CFG: '/home/pierre/Documents/PHD/aaf_framework/config_files/aaf_module/feature_reweighting.yaml'
-    CFG: 'aaf_framework/config_files/aaf_module/dana.yaml'
-    # CFG: '/home/pierre/Documents/PHD/aaf_framework/config_files/aaf_module/meta_faster_rcnn.yaml'
-    # CFG: '/home/pierre/Documents/PHD/aaf_framework/config_files/aaf_module/dynamic.yaml'
-    # CFG: '/home/pierre/Documents/PHD/aaf_framework/config_files/aaf_module/self_adapt.yaml'
-# OUTPUT_DIR: './Experiments_aaf_framework'
-OUTPUT_DIR: 'aaf_framework/output/Experiments_FSFCOS/DIOR/DANA_1'
+    CFG: 'aaf_framework/config_files/aaf_module/xqsa.yaml'
+OUTPUT_DIR: 'aaf_framework/output/Experiments_FSFCOS/DIOR/PVT_V2_B2_LIXQSA8'
 RANDOM:
   DISABLED: False
 LOGGING:
-  INTERVAL: 20
-  EVAL_INTERVAL: 1000
+  INTERVAL: 150
+  EVAL_INTERVAL: 1500
 FINETUNING: True
 FINETUNE:
-  EPISODES: 10000
+  EPISODES: 1000
   FREEZE_AT: 5
   LR: 0.0001
   EXAMPLES: 'rng_same' # 'random' / 'rng_same' / 'deterministic'
-  SHOTS: [1,3,5,10]
+  SHOTS: [1,10]
   MIXED: True
-  STEPS: (10000,)
+  STEPS: (1000,)
+PRETRAINED_BACKBONE: True
 VERSION: 2

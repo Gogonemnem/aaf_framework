@@ -36,21 +36,21 @@ class DatasetCatalog(object):
         },
         "dota_train": {
             "img_dir":
-            DATA_DIR + "/DOTA_v2/coco_format/train2017",
+            DATA_DIR + "/dota_dataset/coco/train2017",
             "ann_file":
-            DATA_DIR + "/DOTA_v2/coco_format/annotations/instances_train2017.json"
+            DATA_DIR + "/dota_dataset/coco/annotations/instances_train2017.json"
         },
         "dota_val": {
             "img_dir":
-            DATA_DIR + "/DOTA_v2/coco_format/val2017",
+            DATA_DIR + "/dota_dataset/coco/val2017",
             "ann_file":
-            DATA_DIR + "/DOTA_v2/coco_format/annotations/instances_val2017.json"
+            DATA_DIR + "/dota_dataset/coco/annotations/instances_val2017.json"
         },
         "dota_test": {
             "img_dir":
-            DATA_DIR + "/DOTA_v2/coco_format/test2017",
+            DATA_DIR + "/dota_dataset/coco/test2017",
             "ann_file":
-            DATA_DIR + "/DOTA_v2/coco_format/annotations/instances_test2017.json"
+            DATA_DIR + "/dota_dataset/coco/annotations/instances_test2017.json"
         },
         "coco_2017_train": {
             "img_dir":
