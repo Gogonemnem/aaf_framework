@@ -123,9 +123,10 @@ class Trainer():
         # console_handler.setFormatter(log_format)
         # self.logger.addHandler(console_handler)
 
-        file_handler = logging.FileHandler(os.path.join(self.cfg.OUTPUT_DIR, 'training.log'))
-        file_handler.setFormatter(log_format)
-        self.logger.addHandler(file_handler)
+        if not any(isinstance(handler, logging.FileHandler) for handler in self.logger.handlers):
+            file_handler = logging.FileHandler(os.path.join(self.cfg.OUTPUT_DIR, 'training.log'))
+            file_handler.setFormatter(log_format)
+            self.logger.addHandler(file_handler)
 
         self.logger.info(f"Model:\n{self.model}")
 
