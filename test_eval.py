@@ -4,17 +4,18 @@ from detectron2.engine import (
     default_argument_parser,
     default_setup,
 )
+import json
 import os
 
 from .data.data_handler import DataHandler
 from .eval.eval import Evaluator
 from .modeling.detector.detectors import build_detection_model
-from fcos.core.utils.checkpoint import DetectronCheckpointer
+from .utils.checkpointer import DetectronCheckpointer
 from .modeling.detector import build_detection_model
 from .train.utils import make_lr_scheduler, make_optimizer
 
 
-def eval(model, cfg, is_few_shot=False):
+def eval_model(cfg, model, is_few_shot=False, k_shot=None):
     """
     Perform evaluation, handling both few-shot and regular scenarios based on the is_few_shot flag.
     """
@@ -22,33 +23,28 @@ def eval(model, cfg, is_few_shot=False):
     os.makedirs(output_dir, exist_ok=True)
     optimizer = make_optimizer(cfg, model)
     scheduler = make_lr_scheduler(cfg, optimizer)
-    last_checkpoint =  DetectronCheckpointer(
-        cfg, model, optimizer, scheduler, output_dir, save_to_disk=False
-    ).load()
-
-    if last_checkpoint:
-        print(f"Resumed from checkpoint: {last_checkpoint}")
+    
+    # Set the correct checkpoint file name
+    if is_few_shot:
+        checkpoint_file = f"final_model_{k_shot}shot_finetuning.pth"
     else:
-        print("No valid checkpoint found, training from scratch.")
+        checkpoint_file = "final_model_1shot.pth"
+    
+    checkpoint_path = os.path.join(output_dir, checkpoint_file)
+    
+    if os.path.exists(checkpoint_path):
+        DetectronCheckpointer(
+            cfg, model, optimizer, scheduler, output_dir, save_to_disk=False
+        ).load(checkpoint_path)
+        print(f"Loaded checkpoint from: {checkpoint_path}")
+    else:
+        print(f"No checkpoint found at: {checkpoint_path}")
+        return {}
 
     model.eval()
-    evaluator_train = create_evaluator(model, cfg, is_train_class=True, is_few_shot=is_few_shot)
+    evaluator = create_evaluator(model, cfg, is_train_class=True, is_few_shot=is_few_shot)
 
-    res_train = evaluator_train.eval_all(verbose=True)
-    train_map = res_train.stats[1] if res_train != {} else 0
-
-    if is_few_shot:
-        evaluator_test = create_evaluator(model, cfg, is_train_class=False, is_few_shot=is_few_shot)
-        
-        # Perform evaluation and retrieve results for test classes
-        res_test = evaluator_test.eval_all(verbose=True) # , per_category=False)['overall']
-        test_map = res_test.stats[1] if res_test != {} else 0
-
-        eval_res = {'Train mAP': train_map, 'Test mAP': test_map}
-    else:
-        eval_res = {'Train mAP': train_map}
-    
-    model.train()
+    eval_res = evaluator.eval_all(n_episode=10, verbose=False)
     return eval_res
 
 
@@ -57,8 +53,8 @@ def create_evaluator(model, cfg, is_train_class, is_few_shot):
     Create an evaluator based on the class type and whether it is few-shot training.
     """
     base_classes = is_train_class or not is_few_shot
-    data_handler = DataHandler(cfg, base_classes=base_classes, data_source='val', is_train=False)
-    data_handler = DataHandler(cfg, base_classes=base_classes, data_source='val', eval_all=True, is_train=False)
+    # data_handler = DataHandler(cfg, base_classes=base_classes, data_source='test', is_train=False)
+    data_handler = DataHandler(cfg, base_classes=base_classes, data_source='test', eval_all=True, is_train=False)
     return Evaluator(model, cfg, data_handler)
 
 def setup(args):
@@ -74,12 +70,32 @@ def setup(args):
     return cfg
 
 def main(args):
-    cfg = setup(args)
-    model = build_detection_model(cfg).to("cuda")
-    eval(model, cfg, is_few_shot=True)
+    results = {}
+    for config_file in args.config_files:
+        args.config_file = config_file
+        cfg = setup(args)
+        model = build_detection_model(cfg).to("cuda")
+        
+        # # Evaluate base training model
+        # base_res = eval_model(cfg, model, is_few_shot=True)
+        # results.update({os.path.basename(config_file): {"base": base_res})
+        
+        # Evaluate few-shot fine-tuning models
+        few_shot_results = {}
+        for k_shot in cfg.FINETUNE.SHOTS:
+            shot_res = eval_model(cfg, model, is_few_shot=True, k_shot=k_shot)
+            few_shot_results[f"{k_shot}_shot"] = shot_res
+        
+        results.update({os.path.basename(config_file): {"few_shot": few_shot_results}})
+    
+    with open(args.output_file, 'w', encoding='utf-8') as f:
+        json.dump(results, f)
 
 def invoke_main() -> None:
-    args = default_argument_parser().parse_args()
+    parser = default_argument_parser()
+    parser.add_argument("--config-files", nargs='+', required=True, help="List of config files")
+    parser.add_argument("--output-file", required=True, help="Output file for evaluation results")
+    args = parser.parse_args()
     print("Command Line Args:", args)
     main(args)
 

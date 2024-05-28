@@ -207,8 +207,6 @@ class Evaluator():
 
         return predictions
 
-
-    ### From here on, i dont know where it gets called.
     def eval_all(self, n_episode=1, verbose=True, seed=None):
         """
         Similar to eval function except it loop over the multiple dataloaders returned 
@@ -232,7 +230,7 @@ class Evaluator():
 
             for res_type, res_results in all_res.items():
                 for q_s_loaders in loaders[res_type]:
-                    res = self.eval(verbose=True, loaders=q_s_loaders, seed=seed)
+                    res = self.eval(verbose=verbose, loaders=q_s_loaders, seed=seed)
                     # this will overwrite some keys if the last batch is padded
                     # but only one eval is retained for each class
                     for cls, cls_results in res.items():
@@ -240,9 +238,9 @@ class Evaluator():
                             res_results[cls] = []
                         res_results[cls].append(cls_results.stats)
 
-            for res_type, res_results in all_res.items():
-                for cls, cls_results in res_results.items():
-                    res_results[cls] = np.vstack(cls_results).mean(axis=0)
+        for res_type, res_results in all_res.items():
+            for cls, cls_results in res_results.items():
+                res_results[cls] = np.vstack(cls_results).mean(axis=0)
 
         return all_res
         # return self.prettify_results(all_res, verbose=verbose, is_few_shot=True)
