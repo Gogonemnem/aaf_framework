@@ -14,7 +14,7 @@ MODEL:
     IOU_LOSS_TYPE: "giou"
     LOSS_ALPHA: 0.25
     INFERENCE_TH: 0.1
-    NUM_CLASSES: 17
+    NUM_CLASSES: 21
 DATASETS:
   TRAIN: ("dior_train",)
   TEST: ("dior_test",)
@@ -65,7 +65,7 @@ FEWSHOT:
   SAME_SUPPORT_IN_BATCH: True # do not put to False while FineTuning
   AAF:
     CFG: 'aaf_framework/config_files/aaf_module/xqsa.yaml'
-OUTPUT_DIR: 'aaf_framework/output/Experiments_FSFCOS/DIOR/PVT_V2_B2_LIXQSA8'
+OUTPUT_DIR: 'aaf_framework/output/Experiments_FSFCOS/DIOR/fcos_PVT_V2_B2_LI_FPN_RETINANET_DIOR_XQSA8'
 RANDOM:
   DISABLED: False
 LOGGING:
