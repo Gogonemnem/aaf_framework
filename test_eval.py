@@ -35,7 +35,7 @@ def eval_model(cfg, model, is_few_shot=False, k_shot=None):
     if os.path.exists(checkpoint_path):
         DetectronCheckpointer(
             cfg, model, optimizer, scheduler, output_dir, save_to_disk=False
-        ).load(checkpoint_path)
+        ).load(checkpoint_path, force_file=True)
         print(f"Loaded checkpoint from: {checkpoint_path}")
     else:
         print(f"No checkpoint found at: {checkpoint_path}")

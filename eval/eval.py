@@ -1,6 +1,7 @@
 import torch
 import os
 from contextlib import nullcontext
+from copy import deepcopy
 
 import numpy as np
 
@@ -158,7 +159,7 @@ class Evaluator():
         print(f'{sep}')
         coco_eval.summarize()
 
-        results = {'overall': coco_eval}
+        results = {'overall': deepcopy(coco_eval)}
         
         if not per_category:
             return results
@@ -174,7 +175,7 @@ class Evaluator():
             print(f'{sep}')
             coco_eval.summarize()
 
-            results[self.categories[category_id]] = coco_eval
+            results[self.categories[category_id]] = deepcopy(coco_eval)
         return results
         
         
@@ -228,19 +229,30 @@ class Evaluator():
 
             loaders = self.data_handler.get_dataloader(seed=seed)
 
+            seen_classes = {'train': set("overall"), 'test': set("overall")}
+
             for res_type, res_results in all_res.items():
                 for q_s_loaders in loaders[res_type]:
                     res = self.eval(verbose=verbose, loaders=q_s_loaders, seed=seed)
-                    # this will overwrite some keys if the last batch is padded
-                    # but only one eval is retained for each class
                     for cls, cls_results in res.items():
+                        # this will overwrite some keys if the last batch is padded
+                        # but only one eval is retained for each class
+                        if cls in seen_classes[res_type]:
+                            continue
+
                         if cls not in res_results:
                             res_results[cls] = []
                         res_results[cls].append(cls_results.stats)
+                        seen_classes[res_type].add(cls)
 
+        metrics = ["AP", "AP50", "AP75", "APs", "APm", "APl"]
         for res_type, res_results in all_res.items():
             for cls, cls_results in res_results.items():
-                res_results[cls] = np.vstack(cls_results).mean(axis=0)
+                stacked_results = np.vstack(cls_results)
+                stacked_results[stacked_results < 0] = np.nan
+                mean_cls_results = np.nanmean(stacked_results, axis=0)
+                mean_cls_results[np.isnan(mean_cls_results)] = -1
+                res_results[cls] = {f"{metric}": mean_cls_results[id] for id, metric in enumerate(metrics)}
 
         return all_res
         # return self.prettify_results(all_res, verbose=verbose, is_few_shot=True)
