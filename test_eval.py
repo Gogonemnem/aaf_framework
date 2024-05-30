@@ -70,23 +70,36 @@ def setup(args):
     return cfg
 
 def main(args):
-    results = {}
+    if os.path.exists(args.output_file):
+        with open(args.output_file, 'r', encoding='utf-8') as f:
+            results = json.load(f)
+    else:
+        results = {}
+
     for config_file in args.config_files:
         args.config_file = config_file
         cfg = setup(args)
         model = build_detection_model(cfg).to("cuda")
+
+        config_basename = os.path.basename(config_file)
         
-        # # Evaluate base training model
-        # base_res = eval_model(cfg, model, is_few_shot=True)
-        # results.update({os.path.basename(config_file): {"base": base_res})
+        # Evaluate base training model
+        if args.overwrite or "base" not in results.get(config_basename, {}):
+            base_res = eval_model(cfg, model, is_few_shot=True)
+            results.update({config_basename: {"base": base_res}})
         
         # Evaluate few-shot fine-tuning models
-        few_shot_results = {}
+        few_shot_results = results[config_basename].get("few_shot", {})
         for k_shot in cfg.FINETUNE.SHOTS:
+            shot_key = f"{k_shot}_shot"
+            if not args.overwrite and shot_key in few_shot_results:
+                print(f"Skipping evaluation for {shot_key} as results already exist.")
+                continue
             shot_res = eval_model(cfg, model, is_few_shot=True, k_shot=k_shot)
-            few_shot_results[f"{k_shot}_shot"] = shot_res
+            few_shot_results[shot_key] = shot_res
+        results[config_basename]["few_shot"] = few_shot_results
         
-        results.update({os.path.basename(config_file): {"few_shot": few_shot_results}})
+        results.update({config_basename: {"few_shot": few_shot_results}})
     
     with open(args.output_file, 'w', encoding='utf-8') as f:
         json.dump(results, f)
@@ -95,6 +108,7 @@ def invoke_main() -> None:
     parser = default_argument_parser()
     parser.add_argument("--config-files", nargs='+', required=True, help="List of config files")
     parser.add_argument("--output-file", required=True, help="Output file for evaluation results")
+    parser.add_argument("--overwrite", action='store_true', default=False, help="Flag to overwrite existing results in the output file")
     args = parser.parse_args()
     print("Command Line Args:", args)
     main(args)
