@@ -2,7 +2,7 @@ import torch
 from torch import nn
 
 from .. import registry
-from ...config.aaf_module import cfg as aaf_cfg
+from ...config.aaf_module import cfg as _aaf_cfg
 from .utils import AAFIOMode, prime_factors
 
 class AAFModule(nn.Module):
@@ -22,6 +22,7 @@ class AAFModule(nn.Module):
 
         self.cfg = cfg
 
+        aaf_cfg = _aaf_cfg.clone()
         aaf_cfg.merge_from_file(cfg.FEWSHOT.AAF.CFG)
         self.aaf_cfg = aaf_cfg
 

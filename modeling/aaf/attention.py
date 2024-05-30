@@ -1,3 +1,4 @@
+import math
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -152,7 +153,8 @@ class REWEIGHTING_BATCH(BaseAttention):
             # F.conv2d(feat, support_pooled[level],
             #          groups=C * N_s * B).reshape(B, N_way, K, C, feat.shape[-2],
             #                                        feat.shape[-1]).mean(dim=2)
-            (feat * F.softmax(support_pooled[level], dim=2)
+            # (feat * F.softmax(support_pooled[level], dim=2)
+            (feat * F.sigmoid(support_pooled[level])
              ).reshape(B, N_way, K, C, feat.shape[-2],
                        feat.shape[-1]).mean(dim=2)
             for level, feat in enumerate(query_features)
@@ -166,12 +168,123 @@ class REWEIGHTING_BATCH(BaseAttention):
             'support' + self.output_name: support_attended_query
         })
 
+@registry.ATTENTION_MODULE.register
+class REWEIGHTING_SMALL_SCALE(BaseAttention):
+    def __init__(self, *args):
+        super().__init__(*args)
+
+        self.pooled_vectors = None
+
+    def forward(self, features):
+
+        query_features = features['query' + self.input_name]
+        support_features = features['support' + self.input_name]
+        support_targets = features['support_targets']
+
+        N_s, B, C, _, _ = support_features[0].shape
+
+        K = self.cfg.FEWSHOT.K_SHOT
+
+        N_way = N_s // K
+        support_pooled = [
+            # feat.permute(1, 0, 2, 3, 4).max(-1)[0].max(-1)[0].reshape(
+            #     N_s * B * C, 1, 1, 1)
+            # feat.permute(1,0,2,3,4).max(-1)[0].max(-1)[0].reshape(B, N_s, C, 1, 1)
+            feat.permute(1, 0, 2, 3,
+                         4).mean(dim=[-1, -2],
+                                 keepdim=True)  #.reshape(N_s * B * C, 1, 1, 1)
+            for feat in support_features
+        ]
+
+        support_pooled = [support_pooled[0]] * 3
+
+        # query_features = apply_tensor_list(query_features, 'flatten', 0, 2)
+        # # when using batched rw vectors
+        # query_features = apply_tensor_list(query_features, 'unsqueeze', 0)
+        support_attended_query = support_features
+        query_attended_support = [
+            # F.conv2d(feat, support_pooled[level],
+            #          groups=C * N_s * B).reshape(B, N_way, K, C, feat.shape[-2],
+            #                                        feat.shape[-1]).mean(dim=2)
+            (feat * F.softmax(support_pooled[level], dim=2)
+             ).reshape(B, N_way, K, C, feat.shape[-2],
+                       feat.shape[-1]).mean(dim=2)
+            for level, feat in enumerate(query_features[:3])
+        ]
+
+        self.pooled_vectors = support_pooled
+        self.support_target = support_targets
+        self.query_attended_features = query_attended_support[:3]
+        features.update({
+            'query' + self.output_name: query_attended_support,
+            'support' + self.output_name: support_attended_query
+        })
+
+@registry.ATTENTION_MODULE.register
+class REWEIGHTING_WO_SOFT(BaseAttention):
+    def __init__(self, *args):
+        super().__init__(*args)
+
+        self.pooled_vectors = None
+
+        # in_feat = self.cfg.MODEL.RESNETS.BACKBONE_OUT_CHANNELS * self.cfg.FEWSHOT.FEATURE_LEVEL
+        # out_feat = self.cfg.MODEL.RESNETS.BACKBONE_OUT_CHANNELS
+        # self.mlp_level = nn.Sequential(nn.Linear(in_feat, out_feat),
+        #                                 nn.LeakyReLU(),
+        #                                 nn.Linear(out_feat,out_feat),
+        #                                 nn.Sigmoid())
+
+
+    def forward(self, features):
+        query_features = features['query' + self.input_name]
+        support_features = features['support' + self.input_name]
+        support_targets = features['support_targets']
+
+        N_s, B, C, _, _ = support_features[0].shape
+
+        K = self.cfg.FEWSHOT.K_SHOT
+
+        N_way = N_s // K
+
+        n_levels = self.cfg.FEWSHOT.FEATURE_LEVEL
+
+        support_pooled = []
+        for level, feat in enumerate(support_features):
+            N_s, B, C, H, W = feat.shape
+            feat = feat.permute(1, 0, 2, 3, 4).reshape(B * N_s, C, H, W)
+            support_pooled.append(
+                    feat.mean(dim=[-1, -2], keepdim=True).reshape(B, N_s, C, 1, 1))
+
+        # support_stacked = torch.cat(support_pooled, dim=2)
+        # support_stacked = support_stacked.reshape(B * N_s, n_levels * C)
+        # support_mixed = self.mlp_level(support_stacked).reshape(B, N_s, C, 1, 1)
+
+        cos = torch.nn.CosineSimilarity(dim=2)
+        support_attended_query = support_features
+        query_attended_support = [
+            (
+                feat * torch.sigmoid(support_pooled[level] / feat.shape[-2])
+                # feat * torch.sigmoid((feat * support_pooled[level]).sum(dim=-2, keepdim=True))
+                # feat * 0.5 * (1 + cos(feat, support_pooled[level])).unsqueeze(2)
+                # feat * support_mixed
+            ).reshape(B, N_way, K, C, feat.shape[-2],
+                      feat.shape[-1]).mean(dim=2)
+            for level, feat in enumerate(query_features)
+        ]
+
+        self.pooled_vectors = support_pooled
+        self.support_target = support_targets
+        self.query_attended_features = query_attended_support
+        features.update({
+            'query' + self.output_name: query_attended_support,
+            'support' + self.output_name: support_attended_query
+        })
 
 
 @registry.ATTENTION_MODULE.register
 class SELF_ATTENTION(BaseAttention):
     def __init__(self, *args):
-        super().__init__(*args)
+        super(self).__init__(*args)
 
         self.pooled_vectors = None
 
@@ -194,7 +307,6 @@ class SELF_ATTENTION(BaseAttention):
             'query' + self.output_name: query_attended_support,
             'support' + self.output_name: support_features
         })
-
 
 @registry.ATTENTION_MODULE.register
 class BGA(BaseAttention):
@@ -351,14 +463,15 @@ class GRU(BaseAttention):
         self.out_mode = AAFIOMode.Q_BCHW_S_NCHW
 
     def forward(self, features):
+        L = self.cfg.FEWSHOT.FEATURE_LEVEL
+        K = self.cfg.FEWSHOT.K_SHOT
 
         query_features = features['query' + self.input_name]
-        support_features = features['support' + self.input_name]
+        support_features = features['support' + self.input_name][:L]
         support_targets = features['support_targets']
 
         support_pooled = []
         query_pooled = []
-        K = self.cfg.FEWSHOT.K_SHOT
 
         for level, s_feat in enumerate(support_features):
             q_feat = query_features[level]

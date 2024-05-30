@@ -79,6 +79,43 @@ class IDENTITY(BaseFusionModule):
 
 
 @registry.FUSION_MODULE.register
+class IDENTITY_MEAN(BaseFusionModule):
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.in_mode = AAFIOMode.ID
+        self.out_mode = AAFIOMode.Q_BNCHW
+
+    def forward(self, features):
+        """
+        Arguments:
+         - support_attended_query: support features attention with query
+                                List[Tensor] B x N_support x Channels x H x W
+         - query_attended_support: query features attention with support
+                                List[Tensor] N_support x B x Channels x H x W
+         - support_targets: targets boxes and label corresponding to each 
+                            support imageList[BoxList]
+        
+        Returns:
+         - query_support_merged: support features aligned with query
+                                List[Tensor] B x N_support x Channels x H x W
+
+        """
+
+        query_features = features['query' + self.input_name]
+        support_features = features['support' + self.input_name]
+        support_targets = features['support_targets']
+
+        output_features = []
+        for feat in query_features:
+            B, N, C, H, W = feat.shape
+            K = self.cfg.FEWSHOT.K_SHOT
+            feat = feat.reshape(B, N//K, K, C, H, W).mean(dim=2)
+            output_features.append(feat)
+
+        features.update({self.output_name: output_features})
+
+
+@registry.FUSION_MODULE.register
 class ADD(BaseFusionModule):
     def __init__(self, *args):
         super().__init__(*args)
@@ -119,7 +156,7 @@ class HADAMARD(BaseFusionModule):
             Ns, B, C, Hs, Ws = support.shape
             B, Ns, C, Hq, Wq = query.shape
 
-            assert Hs == Hq and Ws == Wq, 'Incompatible attention for this fusion module'
+            assert Hs == Hq and Ws == Wq, f'Incompatible attention for this fusion module {Hs=} must equal {Hq=} and {Ws=} = {Wq=}'
 
             feature_merged = query * support.permute(1, 0, 2, 3, 4)
 
