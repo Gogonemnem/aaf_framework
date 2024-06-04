@@ -1,10 +1,10 @@
 MODEL:
   META_ARCHITECTURE: "FSGeneralizedRCNN"
-  WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
+  WEIGHT: ""
   RPN_ONLY: True
   FCOS_ON: True
   BACKBONE:
-    CONV_BODY: "R-50-FPN-HYBRID"
+    CONV_BODY: "PVT-V2-B2-LI-FPN-HYBRID"
     FREEZE_CONV_BODY_AT: 2
   RESNETS:
     BACKBONE_OUT_CHANNELS: 256
@@ -36,7 +36,7 @@ SOLVER:
   WEIGHT_DECAY: 0.0001
   STEPS: (150000, 2000000)
   MAX_ITER: 90000
-  IMS_PER_BATCH: 4
+  IMS_PER_BATCH: 1
   WARMUP_METHOD: "constant"
   CHECKPOINT_PERIOD: 1260
   CONTINUE_TRAINING: True # False
@@ -50,7 +50,7 @@ LOSSES:
     [512, 10000000],
 ]
 TEST:
-  IMS_PER_BATCH: 8
+  IMS_PER_BATCH: 1
   BBOX_AUG:
     ENABLED: False
     H_FLIP: True
@@ -75,7 +75,7 @@ FEWSHOT:
   SAME_SUPPORT_IN_BATCH: True # do not put to False while FineTuning
   AAF:
     CFG: 'aaf_framework/config_files/aaf_module/xqsa.yaml'
-OUTPUT_DIR: 'aaf_framework/output/Experiments_FSFCOS/DIOR/ResNet50_FPN_HYBRID_XQSA8'
+OUTPUT_DIR: 'aaf_framework/output/Experiments_FSFCOS/DIOR/fcos_PVTV2B2LI_FPNHYBRID_XQSA_DIOR'
 RANDOM:
   DISABLED: False
 LOGGING:
@@ -90,4 +90,5 @@ FINETUNE:
   SHOTS: [1,10]
   MIXED: True
   STEPS: (1000,)
+PRETRAINED_BACKBONE: True
 VERSION: 2

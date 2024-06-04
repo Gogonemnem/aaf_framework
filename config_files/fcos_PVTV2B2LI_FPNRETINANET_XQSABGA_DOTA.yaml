@@ -68,13 +68,13 @@ RANDOM:
   DISABLED: False
 FINETUNING: True
 FINETUNE:
-  EPISODES: 10000
+  EPISODES: 1000
   FREEZE_AT: 5
   LR: 0.0001
   EXAMPLES: 'rng_same' # 'random' / 'rng_same' / 'deterministic'
   SHOTS: [10]
   MIXED: True
-  STEPS: (10000,)
+  STEPS: (1000,)
 PRETRAINED_BACKBONE: True
 LOGGING:
   INTERVAL: 38

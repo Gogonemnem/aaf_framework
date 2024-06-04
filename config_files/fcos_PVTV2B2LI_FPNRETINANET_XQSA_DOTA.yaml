@@ -14,18 +14,18 @@ MODEL:
     IOU_LOSS_TYPE: "giou"
     LOSS_ALPHA: 0.25
     INFERENCE_TH: 0.1
-    NUM_CLASSES: 21
+    NUM_CLASSES: 17
 DATASETS:
-  TRAIN: ("dior_train",)
-  TEST: ("dior_test",)
-  VAL: ("dior_val",)
+  TRAIN: ("dota_train",)
+  TEST: ("dota_test",)
+  VAL: ("dota_val",)
 INPUT:
   MIN_SIZE_TRAIN: (512,)
   MAX_SIZE_TRAIN: 512
   MIN_SIZE_TEST: 512
   MAX_SIZE_TEST: 512
-  PIXEL_MEAN: [103.530, 116.280, 123.675]
-  PIXEL_STD: [57.375, 57.120, 58.395]
+  PIXEL_MEAN: [102.9801, 115.9465, 122.7717]
+  PIXEL_STD: [1.0, 1.0, 1.0]
   TO_BGR255: True
 DATALOADER:
   SIZE_DIVISIBILITY: 32
@@ -35,12 +35,12 @@ SOLVER:
   WEIGHT_DECAY: 0.0001
   STEPS: (150000, 2000000)
   MAX_ITER: 90000
-  IMS_PER_BATCH: 1
+  IMS_PER_BATCH: 8
   WARMUP_METHOD: "constant"
   CHECKPOINT_PERIOD: 3000
-  CONTINUE_TRAINING: True # False
+  CONTINUE_TRAINING: True # True
 TEST:
-  IMS_PER_BATCH: 1
+  IMS_PER_BATCH: 8
   BBOX_AUG:
     ENABLED: False
     H_FLIP: True
@@ -49,9 +49,9 @@ TEST:
     SCALE_H_FLIP: True
 FEWSHOT:
   ENABLED: True
-  N_WAYS_TRAIN: 5
-  N_WAYS_TEST: 5
-  N_CLASSES_TEST: 5
+  N_WAYS_TRAIN: 3
+  N_WAYS_TEST: 3
+  N_CLASSES_TEST: 3
   N_QUERY_TRAIN: 100
   N_QUERY_TEST: 100
   SPLIT_METHOD: 'deterministic'
@@ -65,7 +65,7 @@ FEWSHOT:
   SAME_SUPPORT_IN_BATCH: True # do not put to False while FineTuning
   AAF:
     CFG: 'aaf_framework/config_files/aaf_module/xqsa.yaml'
-OUTPUT_DIR: 'aaf_framework/output/Experiments_FSFCOS/DIOR/fcos_PVT_V2_B2_LI_FPN_RETINANET_DIOR_XQSA8'
+OUTPUT_DIR: 'aaf_framework/output/Experiments_FSFCOS/DOTA/fcos_PVTV2B2LI_FPNRETINANET_XQSA_DOTA'
 RANDOM:
   DISABLED: False
 LOGGING:
@@ -82,3 +82,4 @@ FINETUNE:
   STEPS: (1000,)
 PRETRAINED_BACKBONE: True
 VERSION: 2
+
