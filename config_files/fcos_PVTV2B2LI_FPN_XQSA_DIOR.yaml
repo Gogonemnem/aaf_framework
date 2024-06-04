@@ -86,7 +86,7 @@ FINETUNE:
   FREEZE_AT: 5
   LR: 0.0001
   EXAMPLES: 'rng_same' # 'random' / 'rng_same' / 'deterministic'
-  SHOTS: [1,10]
+  SHOTS: [1]
   MIXED: True
   STEPS: (1000,)
 PRETRAINED_BACKBONE: True
