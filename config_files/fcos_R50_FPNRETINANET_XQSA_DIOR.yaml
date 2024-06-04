@@ -37,7 +37,6 @@ SOLVER:
   MAX_ITER: 90000
   IMS_PER_BATCH: 4
   WARMUP_METHOD: "constant"
-  CHECKPOINT_PERIOD: 2500
   CONTINUE_TRAINING: True # False
 TEST:
   IMS_PER_BATCH: 8
@@ -65,12 +64,8 @@ FEWSHOT:
   SAME_SUPPORT_IN_BATCH: True # do not put to False while FineTuning
   AAF:
     CFG: 'aaf_framework/config_files/aaf_module/xqsa.yaml'
-OUTPUT_DIR: 'aaf_framework/output/Experiments_FSFCOS/DIOR/fcos_R50_FPNRETINANET_XQSA_DIOR'
 RANDOM:
   DISABLED: False
-LOGGING:
-  INTERVAL: 125
-  EVAL_INTERVAL: 1250
 FINETUNING: True
 FINETUNE:
   EPISODES: 1000
@@ -80,4 +75,10 @@ FINETUNE:
   SHOTS: [1]
   MIXED: True
   STEPS: (1000,)
+LOGGING:
+  INTERVAL: 63
+  EVAL_INTERVAL: 630
+SOLVER:
+  CHECKPOINT_PERIOD: 1260
+OUTPUT_DIR: 'aaf_framework/output/Experiments_FSFCOS/DIOR/fcos_R50_FPNRETINANET_XQSA_DIOR'
 VERSION: 2
