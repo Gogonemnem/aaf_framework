@@ -214,7 +214,6 @@ class Evaluator():
         by the DataHandler. (DataHandler must have eval_all=True).
 
         Results are then accumulated and stored in a pandas dataframe. 
-        
         """
         assert self.data_handler.eval_all == True, 'Use eval_all with eval_all=True in DataHandler'
 
@@ -229,7 +228,8 @@ class Evaluator():
 
             loaders = self.data_handler.get_dataloader(seed=seed)
 
-            seen_classes = {'train': set("overall"), 'test': set("overall")}
+            metrics = ["AP", "AP50", "AP75", "APs", "APm", "APl"]
+            seen_classes = {'train': {"overall"}, 'test': {"overall"}}
 
             for res_type, res_results in all_res.items():
                 for q_s_loaders in loaders[res_type]:
@@ -241,18 +241,13 @@ class Evaluator():
                             continue
 
                         if cls not in res_results:
-                            res_results[cls] = []
-                        res_results[cls].append(cls_results.stats)
-                        seen_classes[res_type].add(cls)
+                            res_results[cls] = {}
+                        if eval_ep not in res_results[cls]:
+                            res_results[cls][eval_ep] = {}
 
-        metrics = ["AP", "AP50", "AP75", "APs", "APm", "APl"]
-        for res_type, res_results in all_res.items():
-            for cls, cls_results in res_results.items():
-                stacked_results = np.vstack(cls_results)
-                stacked_results[stacked_results < 0] = np.nan
-                mean_cls_results = np.nanmean(stacked_results, axis=0)
-                mean_cls_results[np.isnan(mean_cls_results)] = -1
-                res_results[cls] = {f"{metric}": mean_cls_results[id] for id, metric in enumerate(metrics)}
+                        cls_stats = cls_results.stats
+                        res_results[cls][eval_ep] = {metric: cls_stats[idx] for idx, metric in enumerate(metrics)}
+                        seen_classes[res_type].add(cls)
 
         return all_res
         # return self.prettify_results(all_res, verbose=verbose, is_few_shot=True)
