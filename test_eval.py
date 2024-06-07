@@ -44,7 +44,7 @@ def eval_model(cfg, model, is_few_shot=False, k_shot=None):
     model.eval()
     evaluator = create_evaluator(model, cfg, is_train_class=True, is_few_shot=is_few_shot)
 
-    eval_res = evaluator.eval_all(n_episode=10, verbose=False)
+    eval_res = evaluator.eval_all(n_episode=10, verbose=True)
     return eval_res
 
 
