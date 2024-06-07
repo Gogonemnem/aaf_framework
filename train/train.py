@@ -36,11 +36,6 @@ class Trainer():
         if comm.is_main_process():
             self.setup_logging()
 
-        
-        self.logging_int = cfg.LOGGING.INTERVAL
-        self.logging_eval_int = cfg.LOGGING.EVAL_INTERVAL
-        self.checkpoint_period = cfg.SOLVER.CHECKPOINT_PERIOD
-
     def setup_model(self, k_shot=None):
         if k_shot is not None:
             # Update cfg entry for k'th shot
@@ -56,11 +51,18 @@ class Trainer():
             )
 
     def setup_environment(self, is_finetuning=False, k_shot=1):
+        # if is_finetuning:
+        #     self.logging_int = self.cfg.LOGGING.INTERVAL * self.cfg.N_QUERY_TRAIN / k_shot
+        #     self.logging_eval_int = self.cfg.LOGGING.EVAL_INTERVAL * self.cfg.N_QUERY_TRAIN / k_shot
+        #     self.checkpoint_period = self.cfg.SOLVER.CHECKPOINT_PERIOD * self.cfg.N_QUERY_TRAIN / k_shot
+        # else:
+        self.logging_int = self.cfg.LOGGING.INTERVAL
+        self.logging_eval_int = self.cfg.LOGGING.EVAL_INTERVAL
+        self.checkpoint_period = self.cfg.SOLVER.CHECKPOINT_PERIOD
+
         self.episodes = self.calculate_episodes(is_finetuning, k_shot)
 
-        lr = None
-        if is_finetuning:
-            lr = self.cfg.FINETUNE.LR
+        lr = self.cfg.FINETUNE.LR if is_finetuning else None
         self.optimizer = make_optimizer(self.cfg, self.model, lr)
 
 

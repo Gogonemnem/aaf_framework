@@ -80,9 +80,10 @@ class DataHandler():
         dataset_catalog = import_file("fcos.core.config.paths_catalog", self.cfg.PATHS_CATALOG, True).DatasetCatalog
         transforms = self.get_transforms(cfg)
         dataset_list = getattr(self.cfg.DATASETS, self.data_source.upper())
+        mode = 'finetune' if self.is_finetune else 'train'
 
         datasets = {
-            'query': build_dataset(dataset_list, transforms, dataset_catalog, cfg=self.cfg, is_train=self.is_train, mode='train'), #'finetune' if self.is_finetune else 'train'),
+            'query': build_dataset(dataset_list, transforms, dataset_catalog, cfg=self.cfg, is_train=self.is_train, mode=mode),
             'support': None
         }
 
@@ -205,9 +206,9 @@ class DataHandler():
 
     def get_sampler(self, dataset, selected_classes, is_fewshot, is_support, options, distributed_sampler=False):
         if is_fewshot:
-            if is_support:
+            if is_support or self.is_finetune:
                 n_query = self.cfg.FEWSHOT.K_SHOT
-                if not self.cfg.FEWSHOT.SAME_SUPPORT_IN_BATCH:
+                if not self.cfg.FEWSHOT.SAME_SUPPORT_IN_BATCH and is_support:
                     # when same support in batch is deactivated
                     # one support should be sampled for each
                     # element of the batch
