@@ -88,7 +88,7 @@ LOGGING:
   EVAL_INTERVAL: 3000
 FINETUNING: True
 FINETUNE:
-  EPISODES: 10000
+  EPISODES: 100000
   FREEZE_AT: 5
   LR: 0.0001
   EXAMPLES: 'rng_same' # 'random' / 'rng_same' / 'deterministic'
