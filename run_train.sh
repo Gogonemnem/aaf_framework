@@ -15,7 +15,7 @@ select_gpus() {
 while getopts ":c:g:" opt; do
  case ${opt} in
     c )
-      CONFIG_NAME=$OPTARG
+      CONFIG_FILE=$OPTARG
       ;;
     g )
       NUM_GPUS=$OPTARG
@@ -30,14 +30,13 @@ while getopts ":c:g:" opt; do
       ;;
  esac
 done
-
-# Default configuration name if not provided
-CONFIG_NAME=${CONFIG_NAME:-"fcos_R_50_FPN_HYBRID_DIOR"}
-
-# Construct the full path to the configuration file
-CONFIG_FILE="aaf_framework/config_files/${CONFIG_NAME}.yaml"
 shift $((OPTIND -1))
 
+# Check if configuration is provided
+if [ -z "$CONFIG_FILE" ]; then
+    echo "Error: Configuration name (-c) is required."
+    exit 1
+fi
 
 # Check if the configuration file exists
 if [ ! -f "$CONFIG_FILE" ]; then
@@ -54,7 +53,7 @@ if [ ! -d "$LOG_DIR" ]; then
 fi
 
 # Default number of GPUs if not provided
-NUM_GPUS=${NUM_GPUS:-1}
+NUM_GPUS=${NUM_GPUS:1}
 
 # Select the GPUs with the lowest memory usage
 CUDA_VISIBLE_DEVICES=$(select_gpus $NUM_GPUS)
@@ -65,4 +64,4 @@ export CUDA_VISIBLE_DEVICES
 echo "Selected GPUs: $CUDA_VISIBLE_DEVICES"
 # Execute the command with the selected GPUs and configuration file
 ~/.conda/envs/aaf/bin/python -m aaf_framework.main --num-gpus $NUM_GPUS --dist-url auto \
-  --config-file "$CONFIG_FILE" SOLVER.IMS_PER_BATCH 8 TEST.IMS_PER_BATCH 8 SOLVER.ACCUMULATION_STEPS 1
+  --config-file "$CONFIG_FILE" SOLVER.IMS_PER_BATCH 4 TEST.IMS_PER_BATCH 8 SOLVER.ACCUMULATION_STEPS 2
